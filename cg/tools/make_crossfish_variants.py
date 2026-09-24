@@ -27,8 +27,10 @@ FLAGS = ["-O3", "-std=c++17", "-mavx2", "-mbmi", "-mbmi2", "-mlzcnt", "-mpopcnt"
          "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wl,--stack,16777216"]
 
 
-def rep(s, a, b):
-    assert s.count(a) == 1, f"patch anchor not found exactly once (crossfish source changed?):\n{a}"
+def rep(s, a, b, count=1):
+    """Replace an anchor that must occur exactly `count` times (None: at least once)."""
+    n = s.count(a)
+    assert (n >= 1) if count is None else (n == count), f"patch anchor found {n} times (crossfish source changed?):\n{a}"
     return s.replace(a, b)
 
 
@@ -103,10 +105,9 @@ static bool g_no_ttmate = getenv("CF_NO_TTMATE") != nullptr;'''),
                     && has_immediate_global_win(board, opponent_global_targets)) {'''),
     ('''                else if (has_forced_global_win_after_reply(board, stm)) {''',
      '''                else if (!g_no_fgw && has_forced_global_win_after_reply(board, stm)) {'''),
-    ('''            if (tt_hit && (entry.depth >= depth)) {
-                // Flags match''',
-     '''            if (tt_hit && (entry.depth >= depth) && !(g_no_ttmate && abs(entry.score) >= 90000)) {
-                // Flags match'''),
+    # every TT cutoff: search, and search_leaf since crossfish round eleven
+    ('''            if (tt_hit && (entry.depth >= depth)) {''',
+     '''            if (tt_hit && (entry.depth >= depth) && !(g_no_ttmate && abs(entry.score) >= 90000)) {''', None),
 ]
 
 
@@ -116,8 +117,8 @@ def main():
     for a, b in META:
         meta = rep(meta, a, b)
     debug = meta
-    for a, b in DEBUG:
-        debug = rep(debug, a, b)
+    for a, b, *n in DEBUG:
+        debug = rep(debug, a, b, n[0] if n else 1)
     (CG / "cf_meta.cpp").write_text(meta, encoding="utf-8")
     (CG / "cf_debug.cpp").write_text(debug, encoding="utf-8")
     print("wrote cf_meta.cpp and cf_debug.cpp")
@@ -127,7 +128,7 @@ def main():
     env = dict(os.environ, PATH=str(TOOLCHAIN) + os.pathsep + os.environ["PATH"])
     for cpp, exe in ((REPO / "cpp_impl/codingame_nnue.cpp", "crossfish_cg.exe"),
                      (CG / "cf_meta.cpp", "crossfish_cg_meta.exe"), (CG / "cf_debug.cpp", "crossfish_cg_debug.exe")):
-        subprocess.run(["clang++", *FLAGS, f"-I{REPO / 'cpp_impl'}", "-o", str(CG / exe), str(cpp)], check=True, env=env)
+        subprocess.run([str(TOOLCHAIN / "clang++.exe"), *FLAGS, f"-I{REPO / 'cpp_impl'}", "-o", str(CG / exe), str(cpp)], check=True, env=env)
         print("built", exe)
 
 
