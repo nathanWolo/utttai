@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crossfish vs uttt.ai</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --line: #dde1e7; --text: #1b1f24; --muted: #667080;
+  --cf: #0e9384; --cf-soft: rgba(14,147,132,.14); --ut: #e0701f; --ut-soft: rgba(224,112,31,.14);
+  --draw: #8a93a1; --draw-soft: rgba(138,147,161,.18); --active: rgba(250,204,21,.22); --active-line: #d4a106;
+  --grid: #c9ced6; --grid-strong: #8d95a1; --cell: #ffffff; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --panel: #171b21; --panel-2: #1e232b; --line: #2a313b; --text: #e6e9ee; --muted: #8b95a3;
+    --cf: #2cc7b3; --cf-soft: rgba(44,199,179,.16); --ut: #ff9447; --ut-soft: rgba(255,148,71,.16);
+    --draw: #8d97a6; --draw-soft: rgba(141,151,166,.2); --active: rgba(250,204,21,.13); --active-line: #e3b420;
+    --grid: #333b46; --grid-strong: #56606e; --cell: #1b2027; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --panel: #171b21; --panel-2: #1e232b; --line: #2a313b; --text: #e6e9ee; --muted: #8b95a3;
+  --cf: #2cc7b3; --cf-soft: rgba(44,199,179,.16); --ut: #ff9447; --ut-soft: rgba(255,148,71,.16);
+  --draw: #8d97a6; --draw-soft: rgba(141,151,166,.2); --active: rgba(250,204,21,.13); --active-line: #e3b420;
+  --grid: #333b46; --grid-strong: #56606e; --cell: #1b2027; --shadow: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button { font: inherit; color: inherit; }
+.num { font-variant-numeric: tabular-nums; }
+
+header { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; padding: 14px 20px;
+  background: var(--panel); border-bottom: 1px solid var(--line); }
+.title { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 17px; white-space: nowrap; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-weight: 600; font-size: 13px; }
+.chip.cf { background: var(--cf-soft); color: var(--cf); }
+.chip.ut { background: var(--ut-soft); color: var(--ut); }
+.vs { color: var(--muted); font-weight: 500; font-size: 13px; }
+.score { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.score-top { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+.tally { font-size: 15px; font-weight: 600; }
+.tally .w { color: var(--cf); } .tally .l { color: var(--ut); } .tally .d { color: var(--draw); }
+.elo { font-size: 13px; color: var(--muted); }
+.elo b { color: var(--text); font-weight: 650; }
+.bar { position: relative; height: 8px; border-radius: 99px; overflow: hidden; background: var(--panel-2); display: flex; }
+.bar > span { height: 100%; transition: width .4s ease; }
+.meta { text-align: right; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.meta b { color: var(--text); font-weight: 600; }
+.nav { display: flex; gap: 4px; margin-left: 4px; }
+.nav a { text-decoration: none; padding: 3px 10px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 12.5px; }
+.nav a.on { background: var(--panel-2); color: var(--text); }
+.match-sel { font: inherit; font-size: 12.5px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; max-width: 260px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12.5px; margin: 0; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; font-weight: 600; }
+.pvline { font-size: 12.5px; line-height: 1.9; }
+.pvline span { display: inline-block; padding: 0 6px; border-radius: 6px; margin: 0 3px 3px 0; background: var(--panel-2); }
+.pvline span.o { color: var(--ut); } .pvline span.c { color: var(--cf); }
+.theme-btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 3px 8px; cursor: pointer; font-size: 12px; margin-left: 8px; }
+
+main { display: grid; grid-template-columns: 290px minmax(0, 1fr) 330px; gap: 16px; padding: 16px 20px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+.panel h2 { margin: 0; font-size: 12px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+
+/* game list */
+.list { display: flex; flex-direction: column; max-height: calc(100vh - 120px); }
+.tabs { display: flex; gap: 4px; padding: 10px; border-bottom: 1px solid var(--line); }
+.tab { flex: 1; border: 0; background: transparent; padding: 6px 4px; border-radius: 8px; cursor: pointer; color: var(--muted); font-weight: 600; font-size: 12.5px; }
+.tab.on { background: var(--panel-2); color: var(--text); }
+.games { overflow-y: auto; padding: 6px; }
+.g { display: grid; grid-template-columns: 54px 1fr auto; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 9px; cursor: pointer; border: 1px solid transparent; }
+.g:hover { background: var(--panel-2); }
+.g.sel { background: var(--panel-2); border-color: var(--line); }
+.g .thumb { width: 54px; height: 54px; }
+.g .gl1 { font-weight: 600; font-size: 13px; }
+.g .gl2 { font-size: 12px; color: var(--muted); }
+.res { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+.res.w { background: var(--cf-soft); color: var(--cf); }
+.res.l { background: var(--ut-soft); color: var(--ut); }
+.res.d { background: var(--draw-soft); color: var(--draw); }
+.pulse { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; animation: pulse 1.2s ease-in-out infinite; vertical-align: 1px; }
+@keyframes pulse { 50% { opacity: .25; } }
+.empty-list { padding: 18px 12px; color: var(--muted); font-size: 13px; text-align: center; }
+
+/* board */
+.stage { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.stage-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.players { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.turn { font-size: 13px; color: var(--muted); }
+.board-row { display: flex; gap: 10px; justify-content: center; align-items: stretch; width: 100%; max-width: calc(max(260px, min(640px, 100vh - 250px)) + 74px); margin: 0 auto; }
+.board-wrap { flex: 1 1 auto; min-width: 0; aspect-ratio: 1; }
+.evalbars { display: flex; gap: 6px; flex: 0 0 auto; }
+.evalcol { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ebar { position: relative; width: 26px; flex: 1; border-radius: 6px; overflow: hidden; background: var(--ut); box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.ebar .fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--cf); transition: height .5s ease; }
+.ebar .mid { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(255,255,255,.55); }
+.ebar .lbl { position: absolute; left: 0; right: 0; text-align: center; font-size: 9.5px; font-weight: 800; color: #fff; line-height: 1; padding: 4px 0; letter-spacing: -.02em; }
+.ebar.none { background: var(--panel-2); } .ebar.none .fill { background: transparent; }
+.ebar.none .lbl { color: var(--muted); }
+.evalcap { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; }
+.board-wrap svg { width: 100%; height: 100%; display: block; }
+.controls { display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ctl { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 5px 11px; cursor: pointer; min-width: 38px; }
+.ctl:hover { border-color: var(--grid-strong); }
+.ctl.on { background: var(--cf-soft); border-color: var(--cf); color: var(--cf); font-weight: 600; }
+input[type=range] { width: min(320px, 50vw); accent-color: var(--cf); }
+.ply { font-size: 12.5px; color: var(--muted); min-width: 90px; text-align: center; }
+.banner { text-align: center; font-weight: 650; font-size: 15px; padding: 8px; border-radius: 10px; min-height: 39px; }
+.banner.off { visibility: hidden; }
+.stage-head { min-height: 28px; }
+.turn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#details { height: 212px; overflow: hidden; }
+.pvline { max-height: 58px; overflow: hidden; }
+#cands { height: 124px; }
+
+/* side */
+.side { display: flex; flex-direction: column; gap: 16px; }
+.card { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.evalbox svg { width: 100%; height: 130px; display: block; cursor: crosshair; }
+.evalnow { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); height: 22px; white-space: nowrap; overflow: hidden; }
+.evalnow b { font-size: 15px; }
+.cands { display: flex; flex-direction: column; gap: 5px; }
+.cand { display: grid; grid-template-columns: 58px 1fr 44px; gap: 8px; align-items: center; font-size: 12.5px; }
+.cand .track { height: 7px; background: var(--panel-2); border-radius: 99px; overflow: hidden; }
+.cand .fill { height: 100%; background: var(--ut); border-radius: 99px; }
+.moves { height: 300px; align-content: start; position: relative; overflow-y: auto; display: grid; grid-template-columns: 34px 1fr 1fr; font-size: 12.5px; row-gap: 1px; }
+.moves .n { color: var(--muted); padding: 3px 0; }
+.mv { padding: 3px 6px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 6px; }
+.mv:hover { background: var(--panel-2); }
+.mv.cur { background: var(--active); outline: 1px solid var(--active-line); }
+.mv .t { color: var(--muted); font-size: 11.5px; }
+.mv.book { color: var(--muted); font-style: italic; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.hint { font-size: 12px; color: var(--muted); }
+.waiting { grid-column: 1 / -1; padding: 60px 20px; text-align: center; color: var(--muted); }
+.waiting h3 { color: var(--text); margin: 0 0 6px; font-size: 18px; }
+
+@media (max-width: 1150px) {
+  main { grid-template-columns: 250px minmax(0, 1fr); }
+  .side { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+}
+@media (max-width: 760px) {
+  header { grid-template-columns: 1fr; gap: 10px; padding: 12px 16px; }
+  .meta { text-align: left; }
+  main { grid-template-columns: 1fr; padding: 12px 16px; }
+  .list { max-height: 260px; }
+  .board-row { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    <nav class="nav"><a href="/">Dashboard</a><a class="on" href="/games">Games</a><a href="/analysis">Analysis</a></nav>
+    <span class="chip cf">crossfish</span><span class="vs">vs</span><span class="chip ut" id="utName">uttt.ai</span>
+    <select class="match-sel" id="matchSel" title="Match to view" aria-label="match"></select>
+  </div>
+  <div class="score">
+    <div class="score-top">
+      <span class="tally num" id="tally">–</span>
+      <span class="elo num" id="elo"></span>
+    </div>
+    <div class="bar" id="bar"><span style="background:var(--cf);width:0"></span><span style="background:var(--draw);width:0"></span><span style="background:var(--ut);width:0"></span></div>
+  </div>
+  <div class="meta num" id="meta">connecting…<button class="theme-btn" id="themeBtn">theme</button></div>
+</header>
+<main id="main">
+  <div class="waiting" id="waiting"><h3>Waiting for a match</h3>This page picks up the next crossfish vs uttt.ai match automatically as soon as it starts.</div>
+</main>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const rowOf = i => 3 * Math.floor(i / 27) + Math.floor((i % 9) / 3);
+const colOf = i => 3 * (Math.floor(i / 9) % 3) + (i % 3);
+const cellName = i => `${Math.floor(i / 9) + 1}·${(i % 9) + 1}`;
+
+// ---------- rules (CodinGame: full board without a line goes to the miniboard count) ----------
+function replay(moves) {
+  const cells = new Array(81).fill(0), sup = new Array(9).fill(0);
+  let next = 1, active = -1, last = -1;
+  for (const i of moves) {
+    cells[i] = next; last = i;
+    const mb = Math.floor(i / 9);
+    if (!sup[mb]) {
+      const b = cells.slice(mb * 9, mb * 9 + 9);
+      if (LINES.some(([a, c, d]) => b[a] === next && b[c] === next && b[d] === next)) sup[mb] = next;
+      else if (b.every(x => x)) sup[mb] = 3;
+    }
+    active = sup[i % 9] ? -1 : i % 9;
+    next = 3 - next;
+  }
+  const lineWin = LINES.map(([a, b, c]) => (sup[a] === 1 || sup[a] === 2) && sup[a] === sup[b] && sup[b] === sup[c] ? { w: sup[a], l: [a, b, c] } : null).find(Boolean);
+  let legal = 0;
+  for (let mb = 0; mb < 9; mb++) if (!sup[mb] && (active < 0 || active === mb)) for (let s = 0; s < 9; s++) if (!cells[mb * 9 + s]) legal++;
+  const over = !!lineWin || legal === 0;
+  return { cells, sup, next, active: over ? -2 : active, last, lineWin, over };
+}
+
+// ---------- state ----------
+let data = { summary: null, games: [] };
+let selId = null, ply = null, follow = true, tab = "live", showCands = true;
+const QS = new URLSearchParams(location.search);
+let matchName = QS.get("match"), matchList = [], pollTimer = null;
+let deepGame = QS.has("game") ? +QS.get("game") : null, deepPly = QS.has("ply") ? +QS.get("ply") : null;  // matchName null: follow the newest match
+try { tab = localStorage.getItem("uv_tab") || "live"; } catch (e) {}
+
+function game(id) { return data.games.find(g => g.id === id); }
+function allMoves(g) { return [...g.opening, ...g.moves.map(m => m.i)]; }
+function cfSym(g) { return g.cf_is_x ? 1 : 2; }
+function engineOfSym(g, s) { return s === cfSym(g) ? "cf" : "ut"; }
+function col(e) { return e === "cf" ? "var(--cf)" : e === "ut" ? "var(--ut)" : "var(--draw)"; }
+function resultClass(r) { return r > 0 ? "w" : r < 0 ? "l" : "d"; }
+function resultText(g) {
+  const r = g.result; if (!r) return "";
+  const who = r.cg > 0 ? "crossfish wins" : r.cg < 0 ? "uttt.ai wins" : "draw";
+  return who + (r.count_ending ? " on miniboard count" : "");
+}
+
+// ---------- board SVG ----------
+const GAP = 10, CELL = 36, MB = CELL * 3, SIZE = MB * 3 + GAP * 4;
+const cellXY = i => [GAP + Math.floor(colOf(i) / 3) * (MB + GAP) + (colOf(i) % 3) * CELL, GAP + Math.floor(rowOf(i) / 3) * (MB + GAP) + (rowOf(i) % 3) * CELL];
+const mbXY = mb => [GAP + (mb % 3) * (MB + GAP), GAP + Math.floor(mb / 3) * (MB + GAP)];
+
+function mark(sym, x, y, size, color, opacity = 1, stroke = 3.2) {
+  const p = size * 0.24, c = size / 2;
+  if (sym === 1) return `<g stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" opacity="${opacity}"><line x1="${x + p}" y1="${y + p}" x2="${x + size - p}" y2="${y + size - p}"/><line x1="${x + size - p}" y1="${y + p}" x2="${x + p}" y2="${y + size - p}"/></g>`;
+  return `<circle cx="${x + c}" cy="${y + c}" r="${c - p}" fill="none" stroke="${color}" stroke-width="${stroke}" opacity="${opacity}"/>`;
+}
+
+function boardSVG(g, upto, opts = {}) {
+  const seq = allMoves(g).slice(0, upto);
+  const st = replay(seq);
+  const nOpen = g.opening.length;
+  const moveIdx = new Map(seq.map((m, k) => [m, k]));
+  let s = `<svg viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="board">`;
+  for (let mb = 0; mb < 9; mb++) {
+    const [x, y] = mbXY(mb);
+    const isActive = !st.over && (st.active === -1 ? !st.sup[mb] : st.active === mb);
+    s += `<rect x="${x - 4}" y="${y - 4}" width="${MB + 8}" height="${MB + 8}" rx="8" fill="${isActive ? "var(--active)" : "transparent"}" stroke="${isActive ? "var(--active-line)" : "none"}" stroke-width="1.5"/>`;
+    for (let k = 0; k < 9; k++) {
+      const i = mb * 9 + k, [cx, cy] = cellXY(i);
+      s += `<rect x="${cx + 1.5}" y="${cy + 1.5}" width="${CELL - 3}" height="${CELL - 3}" rx="4" fill="var(--cell)" stroke="var(--grid)" stroke-width="1"/>`;
+    }
+  }
+  // candidate badges for the uttt.ai move that produced this position
+  let cands = null;
+  if (opts.cands !== false && showCands && upto > nOpen) {
+    const m = g.moves[upto - nOpen - 1];
+    if (m && m.by === "ut" && m.cands) cands = m.cands;
+  }
+  for (let i = 0; i < 81; i++) {
+    if (!st.cells[i]) continue;
+    const [cx, cy] = cellXY(i), k = moveIdx.get(i);
+    const e = k < nOpen ? "book" : engineOfSym(g, st.cells[i]);
+    s += mark(st.cells[i], cx, cy, CELL, e === "book" ? "var(--grid-strong)" : col(e), e === "book" ? .75 : 1);
+  }
+  for (let mb = 0; mb < 9; mb++) {
+    if (!st.sup[mb]) continue;
+    const [x, y] = mbXY(mb);
+    if (st.sup[mb] === 3) s += `<rect x="${x}" y="${y}" width="${MB}" height="${MB}" rx="6" fill="var(--draw-soft)"/>`;
+    else {
+      const e = engineOfSym(g, st.sup[mb]);
+      s += `<rect x="${x}" y="${y}" width="${MB}" height="${MB}" rx="6" fill="${e === "cf" ? "var(--cf-soft)" : "var(--ut-soft)"}"/>`;
+      s += mark(st.sup[mb], x + 6, y + 6, MB - 12, col(e), .55, 9);
+    }
+  }
+  if (st.last >= 0) {
+    const [cx, cy] = cellXY(st.last);
+    s += `<rect x="${cx + 1}" y="${cy + 1}" width="${CELL - 2}" height="${CELL - 2}" rx="5" fill="none" stroke="var(--active-line)" stroke-width="2.5"/>`;
+  }
+  if (cands) {
+    for (const [i, share] of cands) {
+      const [cx, cy] = cellXY(i);
+      s += `<g><rect x="${cx + CELL - 25}" y="${cy + CELL - 13}" width="24" height="12" rx="3" fill="var(--ut)" opacity=".92"/><text x="${cx + CELL - 13}" y="${cy + CELL - 4}" font-size="8.5" font-weight="700" text-anchor="middle" fill="#fff">${Math.round(share * 100)}%</text></g>`;
+    }
+  }
+  if (st.lineWin) {
+    const [a, , c] = st.lineWin.l, [ax, ay] = mbXY(a), [bx, by] = mbXY(c);
+    s += `<line x1="${ax + MB / 2}" y1="${ay + MB / 2}" x2="${bx + MB / 2}" y2="${by + MB / 2}" stroke="${col(engineOfSym(g, st.lineWin.w))}" stroke-width="8" stroke-linecap="round" opacity=".8"/>`;
+  }
+  return s + "</svg>";
+}
+
+// ---------- eval chart ----------
+// crossfish's root score is in its own units; squash it to [-1, 1] for the shared axis (mates -> +/-1)
+const cfScaled = e => Math.abs(e) >= 20000 ? Math.sign(e) : 2 / (1 + Math.exp(-e / 400)) - 1;
+const fmtN = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(0) + "k" : String(n);
+const fmtScore = e => Math.abs(e) >= 20000 ? (e > 0 ? "win found" : "loss found") : (e > 0 ? "+" : "") + e;
+function evalSVG(g, upto) {
+  const W = 300, H = 130, nOpen = g.opening.length, total = nOpen + g.moves.length;
+  const pts = [], cfp = [];
+  g.moves.forEach((m, k) => {
+    if (m.by === "ut" && typeof m.v === "number") pts.push([nOpen + k + 1, m.v]);
+    if (m.by === "cf" && typeof m.e === "number" && !m.book) cfp.push([nOpen + k + 1, cfScaled(m.e)]);
+  });
+  const X = p => 6 + (W - 12) * (total <= 1 ? 0 : p / Math.max(total, 30));
+  const Y = v => H / 2 - v * (H / 2 - 8);
+  let s = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" id="evalSvg">`;
+  s += `<rect x="0" y="0" width="${W}" height="${H / 2}" fill="var(--cf-soft)" opacity=".55"/><rect x="0" y="${H / 2}" width="${W}" height="${H / 2}" fill="var(--ut-soft)" opacity=".55"/>`;
+  s += `<line x1="0" y1="${H / 2}" x2="${W}" y2="${H / 2}" stroke="var(--grid-strong)" stroke-dasharray="3 3" stroke-width="1"/>`;
+  if (cfp.length) {
+    const d = cfp.map(([p, v], k) => `${k ? "L" : "M"}${X(p).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+    s += `<path d="${d}" fill="none" stroke="var(--cf)" stroke-width="1.6" stroke-linejoin="round" opacity=".9"/>`;
+  }
+  if (pts.length) {
+    const d = pts.map(([p, v], k) => `${k ? "L" : "M"}${X(p).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+    s += `<path d="${d}" fill="none" stroke="var(--text)" stroke-width="1.8" stroke-linejoin="round"/>`;
+    for (const [p, v] of pts) s += `<circle cx="${X(p)}" cy="${Y(v)}" r="1.8" fill="var(--text)"/>`;
+  }
+  s += `<line x1="${X(upto)}" y1="0" x2="${X(upto)}" y2="${H}" stroke="var(--active-line)" stroke-width="1.5"/>`;
+  s += `<text x="6" y="13" font-size="10" fill="var(--cf)" font-weight="700">crossfish better</text><text x="6" y="${H - 5}" font-size="10" fill="var(--ut)" font-weight="700">uttt.ai better</text>`;
+  return { svg: s + "</svg>", X, total, pts };
+}
+
+// ---------- rendering ----------
+function renderHeader() {
+  const S = data.summary;
+  if (!S) { $("#meta").firstChild.textContent = "no match yet "; return; }
+  $("#utName").textContent = "uttt.ai " + S.utttai;
+  const [w, d, l] = S.cg, n = w + d + l;
+  $("#tally").innerHTML = n ? `crossfish <span class="w">${w}</span> · <span class="d">${d} draws</span> · <span class="l">${l}</span> uttt.ai` : "no finished games yet";
+  const e = S.elo_cg;
+  $("#elo").innerHTML = n ? `crossfish <b>${e[0] >= 0 ? "+" : ""}${e[0].toFixed(0)} ± ${e[1].toFixed(0)}</b> Elo` : "";
+  const bars = $("#bar").children;
+  [w, d, l].forEach((v, k) => bars[k].style.width = n ? (100 * v / n) + "%" : "0");
+  const eta = S.eta ? new Date(S.eta * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "–";
+  $("#meta").firstChild.textContent = "";
+  $("#meta").innerHTML = `<b>${S.done}</b> / ${S.total} games · ${S.finished ? "finished" : "ETA <b>" + eta + "</b>"}<br>crossfish ${S.cf_ms} ms/move · uttt.ai ${S.ut_ms ? S.ut_ms + " ms" : S.sims + " sims"}/move<button class="theme-btn" id="themeBtn">theme</button>`;
+  $("#themeBtn").onclick = toggleTheme;
+}
+
+function ensureLayout() {
+  if ($("#layout")) return;
+  $("#main").innerHTML = `
+  <section class="panel list" id="layout">
+    <div class="tabs">
+      <button class="tab" data-t="live">Live</button><button class="tab" data-t="done">Finished</button><button class="tab" data-t="all">All</button>
+    </div>
+    <div class="games" id="games"></div>
+  </section>
+  <section class="panel stage">
+    <div class="stage-head"><div class="players" id="players"></div><div class="turn" id="turn"></div></div>
+    <div class="banner off" id="banner"></div>
+    <div class="board-row">
+      <div class="evalbars">
+        <div class="evalcol" title="crossfish's own evaluation (root score, scaled)"><div class="ebar" id="barCF"><div class="fill"></div><div class="mid"></div><div class="lbl"></div></div><span class="evalcap" style="color:var(--cf)">CF</span></div>
+        <div class="evalcol" title="uttt.ai's evaluation (search value)"><div class="ebar" id="barUT"><div class="fill"></div><div class="mid"></div><div class="lbl"></div></div><span class="evalcap" style="color:var(--ut)">UT</span></div>
+      </div>
+      <div class="board-wrap" id="board"></div>
+    </div>
+    <div class="controls">
+      <button class="ctl" data-a="first" title="Start (Home)">⏮</button><button class="ctl" data-a="prev" title="Back (←)">◀</button>
+      <input type="range" id="slider" min="0" max="0" value="0" aria-label="move">
+      <button class="ctl" data-a="next" title="Forward (→)">▶</button><button class="ctl" data-a="last" title="Latest (End)">⏭</button>
+      <button class="ctl" id="followBtn" title="Follow the latest move (F)">Follow live</button>
+    </div>
+    <div class="ply num" id="plyText" style="margin:0 auto"></div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--cf)"></span>crossfish</span>
+      <span><span class="dot" style="background:var(--ut)"></span>uttt.ai</span>
+      <span><span class="dot" style="background:var(--grid-strong)"></span>opening book</span>
+      <span><span class="dot" style="background:var(--active-line)"></span>last move / board to play</span>
+      <label style="cursor:pointer"><input type="checkbox" id="candBox" checked> uttt.ai candidate %</label>
+    </div>
+  </section>
+  <aside class="side">
+    <section class="panel card evalbox">
+      <h2>Evaluations</h2>
+      <div id="evalChart"></div>
+      <div class="legend"><span><span class="dot" style="background:var(--text)"></span>uttt.ai (search value)</span><span><span class="dot" style="background:var(--cf)"></span>crossfish (own score, scaled)</span></div>
+      <div class="evalnow" id="evalNow"></div>
+    </section>
+    <section class="panel card"><h2>This move</h2><div id="details"></div></section>
+    <section class="panel card"><h2>uttt.ai's top candidates</h2><div class="cands" id="cands"></div></section>
+    <section class="panel card"><h2>Moves</h2><div class="moves num" id="moves"></div><div class="hint">← → to step · F to follow live · click a move or the chart to jump</div></section>
+  </aside>`;
+  document.querySelectorAll(".tab").forEach(b => b.onclick = () => { tab = b.dataset.t; try { localStorage.setItem("uv_tab", tab); } catch (e) {} renderList(); });
+  document.querySelectorAll(".ctl[data-a]").forEach(b => b.onclick = () => step(b.dataset.a));
+  $("#followBtn").onclick = () => { follow = !follow; if (follow) ply = null; renderGame(); };
+  $("#slider").oninput = e => { follow = false; ply = +e.target.value; renderGame(); };
+  $("#candBox").onchange = e => { showCands = e.target.checked; renderGame(); };
+}
+
+function renderList() {
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.t === tab));
+  const live = data.games.filter(g => g.status !== "done").sort((a, b) => a.id - b.id);
+  const done = data.games.filter(g => g.status === "done").sort((a, b) => b.updated - a.updated);
+  const liveFallback = tab === "live" && !live.length && done.length;
+  const list = tab === "live" ? (liveFallback ? done : live) : tab === "done" ? done : [...live, ...done];
+  const el = $("#games");
+  const note = liveFallback ? `<div class="empty-list" style="padding:8px 12px">No games in progress. Finished games:</div>` : "";
+  if (!list.length) { el.innerHTML = `<div class="empty-list">${tab === "live" ? "No games in progress right now." : "No finished games yet."}</div>`; return; }
+  el.innerHTML = note + list.map(g => {
+    const n = g.opening.length + g.moves.length;
+    const side = `crossfish as ${g.cf_is_x ? "X" : "O"}`;
+    let right, l2;
+    if (g.status === "done") {
+      const r = g.result.cg;
+      right = `<span class="res ${resultClass(r)}">${r > 0 ? "CF" : r < 0 ? "UT" : "½"}</span>`;
+      l2 = `${side} · ${n} plies${g.result.count_ending ? " · count" : ""}`;
+    } else {
+      right = "";
+      const who = g.thinking === "crossfish" ? "crossfish" : "uttt.ai";
+      l2 = `<span class="pulse" style="background:${col(g.thinking === "crossfish" ? "cf" : "ut")}"></span>${who} thinking · ply ${n}`;
+    }
+    return `<div class="g ${g.id === selId ? "sel" : ""}" data-id="${g.id}">
+      <div class="thumb">${boardSVG(g, n, { cands: false })}</div>
+      <div><div class="gl1">Game ${g.id + 1} <span style="color:var(--muted);font-weight:500">· opening ${Math.floor(g.id / 2) + 1}</span></div><div class="gl2">${l2}</div></div>
+      ${right}</div>`;
+  }).join("");
+  el.querySelectorAll(".g").forEach(r => r.onclick = () => { selId = +r.dataset.id; follow = game(selId).status !== "done"; ply = follow ? null : 0; renderList(); renderGame(); });
+}
+
+function step(a) {
+  const g = game(selId); if (!g) return;
+  const max = g.opening.length + g.moves.length, cur = ply ?? max;
+  follow = false;
+  ply = a === "first" ? 0 : a === "last" ? max : a === "prev" ? Math.max(0, cur - 1) : Math.min(max, cur + 1);
+  if (a === "last" && g.status !== "done") { follow = true; ply = null; }
+  renderGame();
+}
+
+function setBar(sel, v, label, tip) {
+  const bar = $(sel), fill = bar.querySelector(".fill"), lbl = bar.querySelector(".lbl");
+  bar.parentElement.title = tip;
+  if (v === null || v === undefined) { bar.classList.add("none"); fill.style.height = "50%"; lbl.textContent = "–"; lbl.style.top = "0"; lbl.style.bottom = ""; return; }
+  bar.classList.remove("none");
+  const share = Math.max(0.02, Math.min(0.98, (v + 1) / 2));  // crossfish's share, bottom up
+  fill.style.height = (share * 100).toFixed(1) + "%";
+  lbl.textContent = label;
+  // label sits at the end of whichever side is ahead, like a chess eval bar
+  if (share >= 0.5) { lbl.style.bottom = "0"; lbl.style.top = ""; } else { lbl.style.top = "0"; lbl.style.bottom = ""; }
+}
+
+function moveMeta(m) {
+  const t = m.ms >= 1000 ? (m.ms / 1000).toFixed(1) + "s" : m.ms + "ms";
+  if (m.by === "cf") return m.book ? "cf book" : typeof m.d === "number" ? `d${m.d} · ${t}` : t;
+  return m.pv ? `pv${m.pv.length} · ${t}` : t;
+}
+
+function renderGame() {
+  const g = game(selId);
+  if (!g) return;
+  const nOpen = g.opening.length, max = nOpen + g.moves.length;
+  const at = follow || ply === null ? max : Math.min(ply, max);
+  $("#board").innerHTML = boardSVG(g, at);
+  const cfX = g.cf_is_x;
+  $("#players").innerHTML = `<span class="chip cf">${cfX ? "X" : "O"} crossfish</span><span class="vs">vs</span><span class="chip ut">${cfX ? "O" : "X"} uttt.ai</span><span class="vs">· game ${g.id + 1}, opening ${Math.floor(g.id / 2) + 1}</span>`;
+  const st = replay(allMoves(g).slice(0, at));
+  const banner = $("#banner");
+  if (g.status === "done" && at === max) {
+    banner.classList.remove("off");
+    const r = g.result.cg;
+    banner.style.background = r > 0 ? "var(--cf-soft)" : r < 0 ? "var(--ut-soft)" : "var(--draw-soft)";
+    banner.style.color = r > 0 ? "var(--cf)" : r < 0 ? "var(--ut)" : "var(--draw)";
+    banner.textContent = resultText(g);
+  } else { banner.classList.add("off"); banner.textContent = "\u00a0"; }
+  $("#turn").innerHTML = g.status === "done" ? (at === max ? "" : "replay") :
+    at === max ? `<span class="pulse" style="background:${col(g.thinking === "crossfish" ? "cf" : "ut")}"></span>${g.thinking === "crossfish" ? "crossfish" : "uttt.ai"} is thinking…` : "viewing an earlier position";
+  const sl = $("#slider"); sl.max = max; sl.value = at;
+  $("#plyText").textContent = at <= nOpen ? `ply ${at} / ${max} · opening book` : `ply ${at} / ${max}`;
+  $("#followBtn").classList.toggle("on", follow && g.status !== "done");
+  $("#followBtn").disabled = g.status === "done";
+
+  // eval
+  const ev = evalSVG(g, at);
+  $("#evalChart").innerHTML = ev.svg;
+  $("#evalSvg").onclick = e => {
+    const r = e.currentTarget.getBoundingClientRect(), frac = (e.clientX - r.left) / r.width;
+    const target = Math.round(frac * Math.max(ev.total, 30));
+    follow = false; ply = Math.max(0, Math.min(max, target)); renderGame();
+  };
+  const lastV = [...ev.pts].reverse().find(([p]) => p <= at);
+  if (lastV) {
+    const v = lastV[1], pct = Math.round((v + 1) * 50);
+    $("#evalNow").innerHTML = `<span>crossfish expected score, per uttt.ai</span><b style="color:${v >= 0 ? "var(--cf)" : "var(--ut)"}">${pct}%</b>`;
+  } else $("#evalNow").innerHTML = `<span>No uttt.ai search yet in this game.</span>`;
+
+  // eval bars: each engine's latest evaluation at or before this position, as crossfish's share
+  let cfEv = null, utEv = null;
+  for (let k = Math.min(at - nOpen, g.moves.length) - 1; k >= 0 && (cfEv === null || utEv === null); k--) {
+    const m = g.moves[k];
+    if (cfEv === null && m.by === "cf" && typeof m.e === "number" && !m.book) cfEv = m;
+    if (utEv === null && m.by === "ut" && typeof m.v === "number") utEv = m;
+  }
+  setBar("#barCF", cfEv && cfScaled(cfEv.e), cfEv && (Math.abs(cfEv.e) >= 20000 ? (cfEv.e > 0 ? "WIN" : "LOSS") : (cfEv.e > 0 ? "+" : "") + (cfEv.e / 100).toFixed(1)),
+         cfEv ? `crossfish: ${fmtScore(cfEv.e)} at depth ${cfEv.d}` : "crossfish has not searched yet");
+  setBar("#barUT", utEv && utEv.v, utEv && Math.round((utEv.v + 1) * 50) + "%",
+         utEv ? `uttt.ai: crossfish ${Math.round((utEv.v + 1) * 50)}% / uttt.ai ${Math.round((1 - utEv.v) * 50)}%` : "uttt.ai has not searched yet");
+
+  // details of the move that produced this position
+  const dm = at > nOpen ? g.moves[at - nOpen - 1] : null;
+  if (!dm) $("#details").innerHTML = `<div class="hint">${at === 0 ? "Start position." : "Opening position (each game starts from a balanced book line)."}</div>`;
+  else {
+    const who = dm.by === "cf" ? "crossfish" : "uttt.ai", sym = at % 2 === 1 ? "X" : "O";
+    let rows = `<dt>Move</dt><dd><span class="dot" style="background:${col(dm.by)}"></span>${who} (${sym}) plays ${cellName(dm.i)}</dd><dt>Time</dt><dd>${dm.ms >= 1000 ? (dm.ms / 1000).toFixed(2) + " s" : dm.ms + " ms"}</dd>`;
+    let pv = "";
+    if (dm.by === "cf") {
+      if (dm.book) rows += `<dt>Source</dt><dd>crossfish's opening book</dd>`;
+      if (typeof dm.d === "number") rows += `<dt>Depth</dt><dd>${dm.d}</dd><dt>Score</dt><dd style="color:${dm.e >= 0 ? "var(--cf)" : "var(--ut)"}">${fmtScore(dm.e)}</dd><dt>Nodes</dt><dd>${fmtN(dm.n)} (${fmtN(Math.round(dm.n / Math.max(0.001, dm.ms / 1000)))}/s)</dd>`;
+    } else {
+      rows += `<dt>Value</dt><dd style="color:${dm.v >= 0 ? "var(--cf)" : "var(--ut)"}">crossfish ${Math.round((dm.v + 1) * 50)}% · uttt.ai ${Math.round((1 - dm.v) * 50)}%</dd>`;
+      if (typeof dm.n === "number") rows += `<dt>Visits</dt><dd>${fmtN(dm.n)}${typeof dm.s === "number" ? ` (${fmtN(dm.s)} new this move)` : ""}</dd>`;
+      if (dm.pv) {
+        rows += `<dt>Line depth</dt><dd>${dm.pv.length} plies</dd>`;
+        pv = `<div class="hint" style="margin-top:8px">uttt.ai's expected line (most-visited replies):</div><div class="pvline">` +
+          dm.pv.map((c, k) => `<span class="${k % 2 ? "c" : "o"}">${cellName(c)}</span>`).join("") + `</div>`;
+      }
+    }
+    $("#details").innerHTML = `<dl class="kv">${rows}</dl>${pv}`;
+  }
+
+  // candidates: the latest uttt.ai move at or before this position
+  let mk = -1;
+  for (let k = Math.min(at - nOpen, g.moves.length) - 1; k >= 0; k--) if (g.moves[k].by === "ut") { mk = k; break; }
+  if (mk >= 0) {
+    const m = g.moves[mk];
+    $("#cands").innerHTML = `<div class="hint">For its move at ply ${nOpen + mk + 1} (${(m.ms / 1000).toFixed(1)} s, share of visits):</div>` + m.cands.map(([i, sh]) =>
+      `<div class="cand"><span>${cellName(i)}${i === m.i ? " ✓" : ""}</span><div class="track"><div class="fill" style="width:${(sh * 100).toFixed(1)}%"></div></div><span class="num" style="text-align:right">${(sh * 100).toFixed(0)}%</span></div>`).join("");
+  } else $("#cands").innerHTML = `<div class="hint">uttt.ai hasn't moved yet in this game.</div>`;
+
+  // move list: plies are numbered from the start; the opening is shown as book moves
+  const all = allMoves(g);
+  let html = "";
+  for (let k = 0; k < all.length; k += 2) {
+    html += `<div class="n">${k / 2 + 1}.</div>`;
+    for (const j of [k, k + 1]) {
+      if (j >= all.length) { html += "<div></div>"; continue; }
+      const book = j < nOpen, m = book ? null : g.moves[j - nOpen];
+      const e = book ? "book" : m.by;
+      html += `<div class="mv ${book ? "book" : ""} ${j + 1 === at ? "cur" : ""}" data-p="${j + 1}"><span><span class="dot" style="background:${e === "book" ? "var(--grid-strong)" : col(e)}"></span>${cellName(all[j])}</span><span class="t">${book ? "book" : moveMeta(m)}</span></div>`;
+    }
+  }
+  const mv = $("#moves"), atBottom = mv.scrollTop + mv.clientHeight >= mv.scrollHeight - 30;
+  mv.innerHTML = html;
+  mv.querySelectorAll(".mv").forEach(d => d.onclick = () => { follow = false; ply = +d.dataset.p; renderGame(); });
+  const cur = mv.querySelector(".mv.cur");
+  if (follow && atBottom) mv.scrollTop = mv.scrollHeight;
+  else if (cur && !follow) {
+    const top = cur.offsetTop, bottom = top + cur.offsetHeight;
+    if (top < mv.scrollTop) mv.scrollTop = top - 4;
+    else if (bottom > mv.scrollTop + mv.clientHeight) mv.scrollTop = bottom - mv.clientHeight + 4;
+  }
+}
+
+function render() {
+  renderHeader();
+  if (!data.summary) { $("#waiting") || ($("#main").innerHTML = `<div class="waiting" id="waiting"><h3>Waiting for a match</h3>This page picks up the next crossfish vs uttt.ai match automatically as soon as it starts.</div>`); return; }
+  ensureLayout();
+  if (deepGame !== null && game(deepGame)) {
+    selId = deepGame; follow = false; ply = deepPly ?? 0; deepGame = null;
+    const g = game(selId); if (g.status === "done") tab = "done";
+  }
+  if (selId === null || !game(selId)) {
+    const live = data.games.filter(g => g.status !== "done").sort((a, b) => a.id - b.id);
+    const pick = live[0] || [...data.games].sort((a, b) => b.updated - a.updated)[0];
+    if (pick) { selId = pick.id; follow = pick.status !== "done"; ply = null; }
+  }
+  renderList();
+  renderGame();
+}
+
+function renderMatches() {
+  const sel = $("#matchSel");
+  const html = [`<option value="">Newest match (auto)</option>`].concat(matchList.map(m => {
+    const when = m.started ? new Date(m.started * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+    return `<option value="${esc(m.name)}">${esc(m.name.replace(/[.]live$/, ""))} · ${m.done}/${m.total}${m.finished ? "" : " live"} · ${when}</option>`;
+  })).join("");
+  if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
+  sel.value = matchName || "";
+}
+
+async function poll() {
+  try {
+    matchList = await (await fetch("/api/matches", { cache: "no-store" })).json();
+    renderMatches();
+    const r = await fetch("/api/state" + (matchName ? "?match=" + encodeURIComponent(matchName) : ""), { cache: "no-store" });
+    const next = await r.json();
+    if (data.summary && next.summary && next.summary.started !== data.summary.started) selId = null; // a new match began
+    data = next;
+    render();
+  } catch (e) { $("#meta").textContent = "viewer server not reachable – retrying…"; }
+  pollTimer = setTimeout(poll, 1500);
+}
+
+function toggleTheme() {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("uv_theme", document.documentElement.dataset.theme); } catch (e) {}
+}
+try { const t = localStorage.getItem("uv_theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("#themeBtn").onclick = toggleTheme;
+$("#matchSel").onchange = e => {
+  matchName = e.target.value || null; selId = null; ply = null; follow = true;
+  history.replaceState(null, "", matchName ? "/games?match=" + encodeURIComponent(matchName) : "/games");
+  data = { summary: null, games: [] }; clearTimeout(pollTimer); poll();
+};
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" && e.target.type !== "range") return;
+  const keys = { ArrowLeft: "prev", ArrowRight: "next", Home: "first", End: "last" };
+  if (keys[e.key]) { e.preventDefault(); step(keys[e.key]); }
+  else if (e.key === "f" || e.key === "F") { follow = !follow; if (follow) ply = null; renderGame(); }
+});
+poll();
+</script>
+</body>
+</html>

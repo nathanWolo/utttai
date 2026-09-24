@@ -1,0 +1,27 @@
+# Local artifacts: networks, self-play data, logs, recorded games and binaries.
+# Networks worth keeping are attached to GitHub releases instead.
+*.pt
+*.onnx
+*.npz
+*.exe
+*.log
+*.stdout
+*.err
+*.out
+*.live/
+data/
+__pycache__/
+analysis/*.json
+
+# Generated from crossfish by tools/make_crossfish_variants.py
+cf_meta.cpp
+cf_debug.cpp
+
+# Debugging scratch and superseded one-off scripts
+*_think.txt
+pos*.txt
+*_v1_backup.py
+*_v1.py
+train/handover.sh
+train/stop_loop.ps1
+train/stop_old_loop.ps1

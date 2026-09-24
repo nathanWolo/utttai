@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Match Analysis</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --line: #dde1e7; --text: #1b1f24; --muted: #667080;
+  --cf: #0e9384; --cf-soft: rgba(14,147,132,.14); --ut: #e0701f; --ut-soft: rgba(224,112,31,.14);
+  --alt: #6d6fe0; --alt-soft: rgba(109,111,224,.14); --good: #16a34a; --bad: #dc2626; --draw: #8a93a1;
+  --grid: #e3e6eb; --axis: #9aa3af; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --panel: #171b21; --panel-2: #1e232b; --line: #2a313b; --text: #e6e9ee; --muted: #8b95a3;
+    --cf: #2cc7b3; --cf-soft: rgba(44,199,179,.16); --ut: #ff9447; --ut-soft: rgba(255,148,71,.16);
+    --alt: #9597ff; --alt-soft: rgba(149,151,255,.16); --good: #4ade80; --bad: #f87171; --draw: #8d97a6;
+    --grid: #242a33; --axis: #5d6673; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --panel: #171b21; --panel-2: #1e232b; --line: #2a313b; --text: #e6e9ee; --muted: #8b95a3;
+  --cf: #2cc7b3; --cf-soft: rgba(44,199,179,.16); --ut: #ff9447; --ut-soft: rgba(255,148,71,.16);
+  --alt: #9597ff; --alt-soft: rgba(149,151,255,.16); --good: #4ade80; --bad: #f87171; --draw: #8d97a6;
+  --grid: #242a33; --axis: #5d6673; --shadow: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: inherit; }
+.num { font-variant-numeric: tabular-nums; }
+header { display: flex; align-items: center; gap: 18px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 16px; display: flex; gap: 8px; align-items: center; }
+.brand .cf { color: var(--cf); } .brand .ut { color: var(--ut); }
+nav { display: flex; gap: 4px; }
+nav a { text-decoration: none; padding: 5px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 13px; }
+nav a.on { background: var(--panel-2); color: var(--text); }
+.spacer { flex: 1; }
+.theme-btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 3px 8px; cursor: pointer; font: inherit; font-size: 12px; color: inherit; }
+main { padding: 16px 20px 48px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; max-width: 1400px; margin: 0 auto; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 16px 18px; min-width: 0; }
+.card h2 { margin: 0 0 4px; font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); }
+.card h3 { margin: 0 0 6px; font-size: 16px; }
+.sub { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
+.s12 { grid-column: span 12; } .s6 { grid-column: span 6; } .s4 { grid-column: span 4; } .s8 { grid-column: span 8; }
+@media (max-width: 1000px) { .s6, .s4, .s8 { grid-column: span 12; } }
+@media (max-width: 640px) { main { padding: 12px 16px 30px; gap: 12px; } header { padding: 10px 16px; } }
+.hero h1 { margin: 0 0 4px; font-size: 22px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 12px; }
+.kpi { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+.kpi .l { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.kpi .v { font-size: 21px; font-weight: 700; }
+.kpi .v small { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.finding { border-left: 3px solid var(--alt); background: var(--panel-2); border-radius: 0 10px 10px 0; padding: 10px 14px; }
+.finding b { display: block; margin-bottom: 3px; }
+.finding p { margin: 0; font-size: 13px; color: var(--muted); }
+.finding p strong { color: var(--text); }
+svg.chart { width: 100%; display: block; overflow: visible; }
+svg.chart text { fill: var(--muted); font-size: 11px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 7px 8px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+.tbl-wrap { overflow-x: auto; }
+.pos { color: var(--cf); font-weight: 650; } .neg { color: var(--ut); font-weight: 650; }
+.links { display: flex; flex-wrap: wrap; gap: 6px; }
+.links a { text-decoration: none; font-size: 12.5px; padding: 3px 9px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--line); }
+.links a:hover { border-color: var(--axis); }
+.note { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.tip { position: fixed; pointer-events: none; background: var(--text); color: var(--bg); font-size: 12px; padding: 6px 9px; border-radius: 7px; z-index: 10; max-width: 280px; opacity: 0; white-space: pre-line; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="cf">crossfish</span><span style="color:var(--muted)">×</span><span class="ut">uttt.ai</span><span style="color:var(--muted);font-weight:500">lab</span></div>
+  <nav><a href="/">Dashboard</a><a href="/games">Games</a><a class="on" href="/analysis">Analysis</a></nav>
+  <div class="spacer"></div>
+  <button class="theme-btn" id="themeBtn">theme</button>
+</header>
+<main id="main"><section class="card s12">Loading…</section></main>
+<div class="tip" id="tip"></div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pct = (x, d = 0) => (100 * x).toFixed(d) + "%";
+const W = 620;
+const elo = s => -400 * Math.log10(1 / s - 1);
+document.addEventListener("mousemove", e => {
+  const t = e.target.closest("[data-tip]"), tip = $("#tip");
+  if (!t) { tip.style.opacity = 0; return; }
+  tip.textContent = t.dataset.tip; tip.style.opacity = 1;
+  tip.style.left = Math.min(innerWidth - tip.offsetWidth - 8, e.clientX + 12) + "px"; tip.style.top = Math.min(innerHeight - tip.offsetHeight - 8, e.clientY + 12) + "px";
+});
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0);
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out;
+}
+function frame(h, lo, hi, { left = 46, right = 12, top = 12, bottom = 28, yFmt = v => v } = {}) {
+  const Y = v => top + (h - top - bottom) * (1 - (v - lo) / (hi - lo || 1));
+  let s = ""; for (const t of niceTicks(lo, hi)) s += `<line x1="${left}" x2="${W - right}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--grid)"/><text x="${left - 6}" y="${Y(t) + 4}" text-anchor="end">${yFmt(t)}</text>`;
+  return { Y, s, x0: left, x1: W - right, h };
+}
+// grouped bars: cats = labels, series = [{name, color, values}]
+function bars(cats, series, { h = 230, yFmt = v => v, lo = 0, hi = null, tipFmt = v => v } = {}) {
+  const all = series.flatMap(s => s.values).filter(v => v !== null);
+  hi = hi ?? Math.max(...all) * 1.12;
+  const f = frame(h, lo, hi, { yFmt });
+  const gw = (f.x1 - f.x0) / cats.length, bw = Math.min(28, gw * .7 / series.length);
+  let s = f.s;
+  cats.forEach((c, i) => {
+    const cx = f.x0 + gw * (i + .5);
+    s += `<text x="${cx}" y="${h - 9}" text-anchor="middle">${esc(c)}</text>`;
+    series.forEach((se, j) => {
+      const v = se.values[i]; if (v === null || v === undefined) return;
+      const x = cx - bw * series.length / 2 + j * bw;
+      s += `<rect x="${x + 1}" y="${f.Y(v)}" width="${bw - 2}" height="${Math.max(0, f.Y(lo) - f.Y(v))}" rx="3" fill="${se.color}" data-tip="${esc(`${c} · ${se.name}: ${tipFmt(v)}`)}"/>`;
+    });
+  });
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}">${s}</svg>`;
+}
+function lines(cats, series, { h = 230, yFmt = v => v, lo = null, hi = null, tipFmt = v => v } = {}) {
+  const all = series.flatMap(s => s.values).filter(v => v !== null);
+  lo = lo ?? Math.min(...all); hi = hi ?? Math.max(...all);
+  const pad = (hi - lo) * .1; const f = frame(h, lo - pad, hi + pad, { yFmt });
+  const X = i => f.x0 + (f.x1 - f.x0) * (cats.length === 1 ? .5 : i / (cats.length - 1));
+  let s = f.s;
+  cats.forEach((c, i) => s += `<text x="${X(i)}" y="${h - 9}" text-anchor="middle">${esc(c)}</text>`);
+  for (const se of series) {
+    const pts = se.values.map((v, i) => v === null ? null : [X(i), f.Y(v), v, cats[i]]).filter(Boolean);
+    s += `<path d="${pts.map((p, k) => (k ? "L" : "M") + p[0] + "," + p[1]).join("")}" fill="none" stroke="${se.color}" stroke-width="2.4" ${se.dash ? 'stroke-dasharray="5 4"' : ""}/>`;
+    for (const p of pts) s += `<circle cx="${p[0]}" cy="${p[1]}" r="4.5" fill="${se.color}" data-tip="${esc(`${p[3]} · ${se.name}: ${tipFmt(p[2])}`)}"/>`;
+  }
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}">${s}</svg>`;
+}
+const legend = items => `<div class="legend">${items.map(([c, t]) => `<span><i style="background:${c}"></i>${esc(t)}</span>`).join("")}</div>`;
+const gameLink = (match, gid, ply, label) => `<a href="/games?match=${encodeURIComponent(match)}&game=${gid}&ply=${ply}">${esc(label)}</a>`;
+
+function render(R) {
+  const E = R.endings, get = (kind, r) => (E.find(e => e.kind === kind && e.result === r) || { n: 0 }).n;
+  const W_ = E.filter(e => e.result === 1).reduce((a, e) => a + e.n, 0), D_ = E.filter(e => e.result === 0).reduce((a, e) => a + e.n, 0), L_ = E.filter(e => e.result === -1).reduce((a, e) => a + e.n, 0);
+  const N = W_ + D_ + L_, score = (W_ + D_ / 2) / N;
+  const P = R.proofs, miss = P.ut_missed_to;
+  const fixedScore = (W_ - (miss["CF won"] || 0) + (D_ - (miss["draw"] || 0)) / 2) / N;
+  const cntN = get("full board (count)", 1) + get("full board (count)", 0) + get("full board (count)", -1);
+  const match = R.source;
+  const bs = R.brier_split, early = bs.line[0], late = bs.line[bs.line.length - 1], cEarly = bs.count[0], cLate = bs.count[bs.count.length - 1];
+  const D = R.disagreement, farCF = D.find(d => d.label.startsWith("CF far")), farUT = D.find(d => d.label.startsWith("uttt.ai far"));
+  const sty = R.style, fm = R.free_moves_vs_result;
+  const rp = R.reply_prediction;
+  let h = "";
+  h += `<section class="card s12 hero"><h1>Crossfish vs uttt.ai net4 at 90 ms: what the ${N.toLocaleString()} games show</h1>
+    <p class="sub">Fair benchmark, one game at a time, CodinGame rules. Everything below is computed from the recorded moves and each engine's own search output (crossfish: depth, score, proofs; uttt.ai: value, visits, expected line). Evaluations are turned into win probabilities with a logistic fit to the results.</p>
+    <div class="kpis num">
+      <div class="kpi"><div class="l">Crossfish score</div><div class="v">${pct(score, 1)} <small>${W_}-${D_}-${L_}</small></div></div>
+      <div class="kpi"><div class="l">Crossfish Elo</div><div class="v">+${elo(score).toFixed(0)}</div></div>
+      <div class="kpi"><div class="l">…if uttt.ai converted proven wins</div><div class="v">+${elo(fixedScore).toFixed(0)} <small>${P.ut_missed} games</small></div></div>
+      <div class="kpi"><div class="l">Games ending on a full board</div><div class="v">${pct(cntN / N)} <small>${cntN}</small></div></div>
+      <div class="kpi"><div class="l">Crossfish proves the result by</div><div class="v">ply ${P.median_ply.win} <small>median, ${P.median_plies_left} plies before the end</small></div></div>
+    </div></section>`;
+
+  h += `<section class="card s12"><h2>Key findings</h2><div class="findings">
+    <div class="finding"><b>Early judgment is a draw; search decides the game</b><p>In plies 0–19 the two engines predict the result equally well (Brier <strong>${early.cf.toFixed(3)}</strong> crossfish vs <strong>${early.ut.toFixed(3)}</strong> uttt.ai, three-in-a-row games). The gap opens from ply ~30, when crossfish's alpha-beta starts <strong>proving</strong> results (median first proof at ply ${P.median_ply.win}); uttt.ai's 90-simulation search never proves anything.</p></div>
+    <div class="finding" style="border-color:var(--ut)"><b>uttt.ai lets proven wins slip</b><p>Crossfish announced a forced loss in <strong>${P.games_loss}</strong> games, but uttt.ai converted only ${P.games_loss - P.ut_missed}: in <strong>${P.ut_missed}</strong> (${pct(P.ut_missed / P.games_loss)}) it let crossfish escape to ${miss["CF won"] || 0} wins and ${miss["draw"] || 0} draws. That is worth about <strong>${(elo(score) - elo(fixedScore)).toFixed(0)} Elo</strong> of crossfish's +${elo(score).toFixed(0)}. ${P.ut_missed_count} of the ${P.ut_missed} were full-board endings.</p></div>
+    <div class="finding" style="border-color:var(--ut)"><b>Full-board endings are uttt.ai's blind spot</b><p>${pct(cntN / N)} of games fill the board. There crossfish scores <strong>${get("full board (count)", 1)}-${get("full board (count)", 0)}-${get("full board (count)", -1)}</strong>, against ${get("three in a row", 1)}-${get("three in a row", -1)} when someone makes three in a row. Late in those games uttt.ai's predictions are ${(cLate.ut / cLate.cf).toFixed(1)}× worse than crossfish's (Brier ${cLate.ut.toFixed(3)} vs ${cLate.cf.toFixed(3)}).</p></div>
+    <div class="finding"><b>When they disagree strongly, crossfish is usually right</b><p>They agree within 10 points ${pct(R.agree_rate)} of the time. When crossfish is ≥30 points more optimistic for itself (${pct(farCF.share, 1)} of positions), it scores <strong>${pct(farCF.outcome)}</strong>: crossfish predicted ${pct(farCF.cf_prob)}, uttt.ai ${pct(farCF.ut_prob)}.</p></div>
+    <div class="finding"><b>uttt.ai hands out free moves</b><p>uttt.ai sends crossfish to a decided miniboard (a free move anywhere) on <strong>${pct(sty.ut.gives_free, 1)}</strong> of its moves vs crossfish's ${pct(sty.cf.gives_free, 1)}. Games where uttt.ai conceded 2 more free moves than crossfish: crossfish scored ${pct(fm.find(f => f.net === 2).cf_score)}; where crossfish conceded 3+ more: ${pct(fm.find(f => f.net === -3).cf_score)}.</p></div>
+    <div class="finding"><b>Surprises happen at different times</b><p>A ≥25-point swing in an engine's own evaluation after one enemy move: crossfish's cluster in plies 20–29 (about three quarters are ordinary evaluation swings, the rest its search reaching a proven loss), so uttt.ai's middlegame moves carry consequences crossfish's depth-17–19 search doesn't see at first. uttt.ai's cluster in plies 30–39, when crossfish's search finds tactics it missed.</p></div>
+  </div></section>`;
+
+  // endings
+  h += `<section class="card s6"><h2>How games end</h2><p class="sub">Crossfish's wins, draws and losses by the kind of ending.</p>
+    ${bars(["three in a row", "full board (count)"], [
+      { name: "crossfish wins", color: "var(--cf)", values: [get("three in a row", 1), get("full board (count)", 1)] },
+      { name: "draws", color: "var(--draw)", values: [get("three in a row", 0), get("full board (count)", 0)] },
+      { name: "uttt.ai wins", color: "var(--ut)", values: [get("three in a row", -1), get("full board (count)", -1)] }])}
+    ${legend([["var(--cf)", "crossfish wins"], ["var(--draw)", "draws"], ["var(--ut)", "uttt.ai wins"]])}
+    <p class="note">Most common full-board finals (crossfish–uttt.ai–drawn miniboards): ${R.count_boards.slice(0, 4).map(c => `${c.cf}–${c.ut}–${c.drawn} (${c.n})`).join(", ")}. A 4–4 split with one drawn board is a draw.</p></section>`;
+
+  // accuracy by phase
+  const cats = bs.line.map(r => "plies " + r.plies);
+  h += `<section class="card s6"><h2>Who reads the position better, by phase</h2><p class="sub">Brier score of each engine's win probability against the result (lower is better). Crossfish's proofs count as 100% certain.</p>
+    ${lines(cats, [
+      { name: "crossfish, three-in-a-row games", color: "var(--cf)", values: bs.line.map(r => r.cf) },
+      { name: "uttt.ai, three-in-a-row games", color: "var(--ut)", values: bs.line.map(r => r.ut) },
+      { name: "crossfish, full-board games", color: "var(--cf)", dash: true, values: bs.count.map(r => r.cf) },
+      { name: "uttt.ai, full-board games", color: "var(--ut)", dash: true, values: bs.count.map(r => r.ut) }], { yFmt: v => v.toFixed(2), tipFmt: v => v.toFixed(3), lo: 0 })}
+    ${legend([["var(--cf)", "crossfish"], ["var(--ut)", "uttt.ai"]])}<p class="note">Solid: games won by three in a row. Dashed: full-board (count) games.</p></section>`;
+
+  // proofs
+  h += `<section class="card s6"><h2>When crossfish proves the result</h2><p class="sub">Ply of crossfish's first proven score (a forced win, loss or draw) in each game.</p>
+    ${bars(P.hist.map(([k]) => k >= 60 ? "60+" : `${k}–${k + 4}`), [{ name: "games", color: "var(--alt)", values: P.hist.map(([, v]) => v) }])}
+    <p class="note num">Proven: ${P.games_win} wins, ${P.games_loss} losses, ${P.games_draw} draws. Once crossfish can prove the result it stops searching early (average think time drops from 90 ms to ~40 ms after ply 30). ${P.cf_proven_win_not_won.length ? `In ${P.cf_proven_win_not_won.length} game crossfish's proven win did not happen (${P.cf_proven_win_not_won.map(g => gameLink(match, g, 1, "game " + (g + 1))).join(", ")}), so its proofs are not flawless.` : ""}</p></section>`;
+
+  // missed conversions
+  h += `<section class="card s6"><h2>Proven wins uttt.ai didn't convert</h2><p class="sub">Crossfish announced a forced loss, then uttt.ai's play let it escape (crossfish's score came back in every case). Open one at the move crossfish saw it:</p>
+    <div class="links">${P.missed_examples.map(e => gameLink(match, e.gid, e.ply, `game ${e.gid + 1} · ply ${e.ply} · ${e.result > 0 ? "CF won" : "draw"}${e.count ? " · full board" : ""}`)).join("")}</div>
+    <p class="note">Verified with a fresh 1-second crossfish search of each position: <b>56 of the ${P.ut_missed}</b> are confirmed lost for crossfish, so uttt.ai really did miss the win. In the other 4 the in-game proof did not hold up (one was a false proof: a fresh search proves a crossfish <i>win</i>), which points to an occasional unsound proof in crossfish's search, under investigation.</p></section>`;
+
+  // disagreement table
+  h += `<section class="card s8"><h2>When the engines disagree, who is right?</h2><p class="sub">Crossfish's evaluation vs uttt.ai's one ply later, as crossfish's winning chances.</p><div class="tbl-wrap"><table class="num">
+    <tr><th>Situation</th><th class="r">Share</th><th class="r">Crossfish says</th><th class="r">uttt.ai says</th><th class="r">Actual</th><th class="r">Closer</th></tr>
+    ${D.map(d => `<tr><td>${esc(d.label)}</td><td class="r">${pct(d.share, 1)}</td><td class="r">${pct(d.cf_prob)}</td><td class="r">${pct(d.ut_prob)}</td><td class="r"><b>${pct(d.outcome)}</b></td>
+      <td class="r ${d.cf_brier < d.ut_brier ? "pos" : "neg"}">${Math.abs(d.cf_brier - d.ut_brier) < .005 ? "tie" : d.cf_brier < d.ut_brier ? "crossfish" : "uttt.ai"}</td></tr>`).join("")}</table></div>
+    <p class="note">Strongest disagreements (open in the viewer): <span class="links">${R.examples.slice(0, 8).map(e => gameLink(match, e.gid, e.ply, `game ${e.gid + 1}: CF ${pct(e.cf_prob)} vs UT ${pct(e.ut_prob)} → ${e.result > 0 ? "CF won" : e.result < 0 ? "UT won" : "draw"}`)).join(" ")}</span></p></section>`;
+
+  // style
+  h += `<section class="card s4"><h2>Playing style</h2><p class="sub">Share of each engine's own (non-book) moves.</p><table class="num">
+    <tr><th></th><th class="r" style="color:var(--cf)">crossfish</th><th class="r" style="color:var(--ut)">uttt.ai</th></tr>
+    <tr><td>Wins a miniboard</td><td class="r">${pct(sty.cf.captures, 1)}</td><td class="r">${pct(sty.ut.captures, 1)}</td></tr>
+    <tr><td>Gives a free move</td><td class="r">${pct(sty.cf.gives_free, 1)}</td><td class="r">${pct(sty.ut.gives_free, 1)}</td></tr>
+    <tr><td>Moves with a free choice</td><td class="r">${pct(sty.cf.free_choice_rate, 1)}</td><td class="r">${pct(sty.ut.free_choice_rate, 1)}</td></tr>
+    <tr><td>Plays a corner square</td><td class="r">${pct(sty.cf.corner_square, 1)}</td><td class="r">${pct(sty.ut.corner_square, 1)}</td></tr>
+    <tr><td>Plays a centre square</td><td class="r">${pct(sty.cf.center_square, 1)}</td><td class="r">${pct(sty.ut.center_square, 1)}</td></tr></table></section>`;
+
+  h += `<section class="card s6"><h2>Free moves and the result</h2><p class="sub">Crossfish's score by (free moves uttt.ai gave) − (free moves crossfish gave) in the game.</p>
+    ${bars(fm.map(f => (f.net > 0 ? "+" : "") + f.net + (Math.abs(f.net) === 3 ? "+" : "")), [{ name: "crossfish score", color: "var(--cf)", values: fm.map(f => f.cf_score) }], { yFmt: v => pct(v), tipFmt: v => pct(v, 1), hi: 1 })}
+    <p class="note">Correlation, not proof of cause: losing positions also force free moves.</p></section>`;
+
+  // prediction and surprises
+  const pk = ["0", "10", "20", "30", "40", "50"].filter(k => rp[k] !== undefined);
+  h += `<section class="card s6"><h2>Does uttt.ai see crossfish's reply coming?</h2><p class="sub">How often crossfish played the reply uttt.ai expected (the 2nd move of its expected line), and how sure uttt.ai was of its own move.</p>
+    ${lines(pk.map(k => `plies ${k}–${+k + 9}`), [
+      { name: "predicted crossfish's reply", color: "var(--alt)", values: pk.map(k => rp[k]) },
+      { name: "visit share of uttt.ai's chosen move", color: "var(--ut)", dash: true, values: pk.map(k => R.ut_confidence_by_phase[k] ?? null) }], { yFmt: v => pct(v), tipFmt: v => pct(v, 1), lo: 0, hi: 1 })}
+    ${legend([["var(--alt)", "predicted the reply"], ["var(--ut)", "confidence in own move"]])}</section>`;
+
+  const phases = [0, 10, 20, 30, 40, 50];
+  const rate = (sw, p) => { const a = sw.all_by_phase.find(x => x[0] === p), b = sw.big_by_phase.find(x => x[0] === p); return a && a[1] > 100 ? (b ? b[1] : 0) / a[1] : null; };
+  h += `<section class="card s6"><h2>Surprises by phase</h2><p class="sub">Share of an engine's moves after which its own evaluation swung ≥25 points against it following one enemy reply.</p>
+    ${bars(phases.map(p => `${p}–${p + 9}`), [
+      { name: "crossfish surprised", color: "var(--cf)", values: phases.map(p => rate(R.cf_swings, p)) },
+      { name: "uttt.ai surprised", color: "var(--ut)", values: phases.map(p => rate(R.ut_swings, p)) }], { yFmt: v => pct(v, 1), tipFmt: v => pct(v, 2) })}
+    ${legend([["var(--cf)", "crossfish surprised"], ["var(--ut)", "uttt.ai surprised"]])}</section>`;
+
+  // search stats
+  const S = R.search_by_phase;
+  h += `<section class="card s6"><h2>Search effort by phase</h2><p class="sub">Median crossfish depth (50 = solved) and uttt.ai simulations per move; crossfish's mean think time.</p><table class="num">
+    <tr><th>Plies</th><th class="r">CF depth</th><th class="r">CF ms used</th><th class="r">UT sims</th></tr>
+    ${S.map(s => `<tr><td>${s.plies}</td><td class="r">${s.cf_depth ?? "–"}</td><td class="r">${s.cf_ms ? s.cf_ms.toFixed(0) : "–"}</td><td class="r">${s.ut_sims ?? "–"}</td></tr>`).join("")}</table></section>`;
+
+  // colours and openings
+  const bc = R.by_color, pen = R.pentanomial;
+  h += `<section class="card s6"><h2>Colours and openings</h2><p class="sub">Each opening is played twice with colours swapped.</p><table class="num">
+    <tr><th></th><th class="r">W</th><th class="r">D</th><th class="r">L</th><th class="r">Score</th></tr>
+    ${Object.entries(bc).map(([k, v]) => `<tr><td>${k}</td><td class="r">${v[0]}</td><td class="r">${v[1]}</td><td class="r">${v[2]}</td><td class="r">${pct((v[0] + v[1] / 2) / (v[0] + v[1] + v[2]), 1)}</td></tr>`).join("")}</table>
+    <p class="note">Per opening pair, crossfish's total over both colours (0 / ½ / 1 / 1½ / 2): <b>${pen.join(" / ")}</b>. It won both games of ${pen[4]} openings and lost both of ${pen[0]}.</p></section>`;
+
+  h += `<section class="card s12"><h2>What this suggests</h2><div class="findings">
+    <div class="finding"><b>For uttt.ai</b><p>Its evaluation is competitive; its conversion is not. Adding exact solving to the search (MCTS-solver style: propagate proven wins and losses up the tree) or more simulations late in the game should recover much of the ~${(elo(score) - elo(fixedScore)).toFixed(0)} Elo lost to missed wins. More full-board training data would target its count-ending blind spot.</p></div>
+    <div class="finding"><b>For crossfish</b><p>Its static evaluation is no better than uttt.ai's early on, where its search is shallowest (depth ~14–19). That is where uttt.ai value labels could teach crossfish's eval something new: the distillation idea, aimed at plies before ~30.</p></div>
+    <div class="finding"><b>For the benchmark</b><p>The time-control series matters: longer thinking should help uttt.ai convert and helps crossfish prove earlier. The 1 s and 5 s runs will show which effect wins.</p></div>
+  </div></section>`;
+  $("#main").innerHTML = h;
+}
+fetch("/api/analysis").then(r => r.json()).then(render).catch(e => $("#main").innerHTML = `<section class="card s12">Could not load the analysis: ${esc(e)}</section>`);
+function toggleTheme() {
+  const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = dark ? "light" : "dark"; try { localStorage.setItem("uv_theme", r.dataset.theme); } catch (e) {}
+}
+try { const t = localStorage.getItem("uv_theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("#themeBtn").onclick = toggleTheme;
+</script>
+</body>
+</html>

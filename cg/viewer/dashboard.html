@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crossfish Lab Dashboard</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --line: #dde1e7; --text: #1b1f24; --muted: #667080;
+  --cf: #0e9384; --cf-soft: rgba(14,147,132,.14); --ut: #e0701f; --ut-soft: rgba(224,112,31,.14);
+  --alt: #6d6fe0; --alt-soft: rgba(109,111,224,.14); --good: #16a34a; --bad: #dc2626; --warn: #d4a106;
+  --grid: #e3e6eb; --axis: #9aa3af; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --panel: #171b21; --panel-2: #1e232b; --line: #2a313b; --text: #e6e9ee; --muted: #8b95a3;
+    --cf: #2cc7b3; --cf-soft: rgba(44,199,179,.16); --ut: #ff9447; --ut-soft: rgba(255,148,71,.16);
+    --alt: #9597ff; --alt-soft: rgba(149,151,255,.16); --good: #4ade80; --bad: #f87171; --warn: #e3b420;
+    --grid: #242a33; --axis: #5d6673; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --panel: #171b21; --panel-2: #1e232b; --line: #2a313b; --text: #e6e9ee; --muted: #8b95a3;
+  --cf: #2cc7b3; --cf-soft: rgba(44,199,179,.16); --ut: #ff9447; --ut-soft: rgba(255,148,71,.16);
+  --alt: #9597ff; --alt-soft: rgba(149,151,255,.16); --good: #4ade80; --bad: #f87171; --warn: #e3b420;
+  --grid: #242a33; --axis: #5d6673; --shadow: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: inherit; }
+.num { font-variant-numeric: tabular-nums; }
+header { display: flex; align-items: center; gap: 18px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 16px; display: flex; gap: 8px; align-items: center; }
+.brand .cf { color: var(--cf); } .brand .ut { color: var(--ut); }
+nav { display: flex; gap: 4px; }
+nav a { text-decoration: none; padding: 5px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 13px; }
+nav a.on { background: var(--panel-2); color: var(--text); }
+.spacer { flex: 1; }
+.updated { font-size: 12px; color: var(--muted); }
+.theme-btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 3px 8px; cursor: pointer; font: inherit; font-size: 12px; color: inherit; }
+
+main { padding: 16px 20px 40px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; max-width: 1500px; margin: 0 auto; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 16px; min-width: 0; }
+.card h2 { margin: 0 0 4px; font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); }
+.card .sub { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
+.s12 { grid-column: span 12; } .s8 { grid-column: span 8; } .s7 { grid-column: span 7; } .s6 { grid-column: span 6; } .s5 { grid-column: span 5; } .s4 { grid-column: span 4; }
+@media (max-width: 1100px) { .s8, .s7, .s6, .s5, .s4 { grid-column: span 12; } }
+@media (max-width: 640px) { main { padding: 12px 16px 30px; gap: 12px; } header { padding: 10px 16px; } }
+
+/* running now */
+.jobs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.job { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--panel-2); }
+.job .t { display: flex; justify-content: space-between; gap: 8px; font-weight: 650; }
+.job .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.job .d { font-size: 12.5px; color: var(--muted); }
+.pbar { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.pbar > span { display: block; height: 100%; background: var(--cf); border-radius: 99px; transition: width .6s ease; }
+.pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--good); margin-right: 6px; animation: pulse 1.3s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+.idle { color: var(--muted); font-size: 13px; }
+.queue { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.chip { display: inline-flex; padding: 2px 9px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--line); font-size: 12px; font-weight: 600; color: var(--text); }
+
+/* charts */
+svg.chart { width: 100%; display: block; overflow: visible; }
+svg.chart text { fill: var(--muted); font-size: 11px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.tip { position: fixed; pointer-events: none; background: var(--text); color: var(--bg); font-size: 12px; padding: 6px 9px; border-radius: 7px; z-index: 10; max-width: 280px; opacity: 0; transition: opacity .1s; white-space: pre-line; }
+
+/* tables */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+.elo-pos { color: var(--cf); font-weight: 650; } .elo-neg { color: var(--ut); font-weight: 650; }
+.pill { font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 99px; }
+.pill.yes { background: rgba(22,163,74,.14); color: var(--good); } .pill.no { background: rgba(220,38,38,.12); color: var(--bad); } .pill.live { background: var(--alt-soft); color: var(--alt); }
+.muted { color: var(--muted); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.kpi { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+.kpi .l { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.kpi .v { font-size: 22px; font-weight: 700; }
+.kpi .v small { font-size: 13px; font-weight: 600; color: var(--muted); }
+.conv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 900px) { .conv { grid-template-columns: 1fr; } }
+table.compact th, table.compact td { padding: 6px 6px; font-size: 12.5px; }
+.empty { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="cf">crossfish</span><span class="muted">×</span><span class="ut">uttt.ai</span><span class="muted" style="font-weight:500">lab</span></div>
+  <nav><a class="on" href="/">Dashboard</a><a href="/games">Games</a><a href="/analysis">Analysis</a></nav>
+  <div class="spacer"></div>
+  <span class="updated num" id="updated">loading…</span>
+  <button class="theme-btn" id="themeBtn">theme</button>
+</header>
+<main>
+  <section class="card s12"><h2>Running now</h2><div id="running"></div></section>
+
+  <section class="card s6">
+    <h2 id="tcTitle">Crossfish vs uttt.ai by thinking time</h2>
+    <p class="sub">Equal wall time per move, one core each, CodinGame rules. Crossfish's Elo against uttt.ai with its 95% interval; positive means crossfish is stronger.</p>
+    <div id="tcChart"></div>
+  </section>
+  <section class="card s6">
+    <h2>Time-control summary</h2>
+    <p class="sub">Median search per move from the recorded games.</p>
+    <div class="tbl-wrap" id="tcTable"></div>
+  </section>
+
+  <section class="card s12">
+    <h2>Elo as games come in</h2>
+    <p class="sub">Crossfish's running Elo with its 95% interval for each time control.</p>
+    <div id="conv" class="conv"></div>
+  </section>
+
+  <section class="card s7">
+    <h2>uttt.ai training: strength by generation</h2>
+    <p class="sub">Cumulative Elo over the original network along the promoted chain. Bars and the figures under each name: that network's gate result against the previous best.</p>
+    <div id="ladder"></div>
+    <div class="legend"><span><i style="background:var(--alt)"></i>cumulative (95% band)</span><span><i style="background:var(--good)"></i>promoted</span><span><i style="background:var(--bad)"></i>not promoted</span></div>
+  </section>
+  <section class="card s5">
+    <h2>Value error vs game results</h2>
+    <p class="sub">Validation MSE of each network's value head against the game outcome (lower is better).</p>
+    <div id="valChart"></div>
+  </section>
+
+  <section class="card s7">
+    <h2>Promotion SPRTs</h2>
+    <p class="sub">Log-likelihood ratio by pairs played (H0 0 Elo, H1 +10 Elo). Crossing +3 promotes; −3 rejects.</p>
+    <div id="sprtChart"></div>
+    <div class="legend" id="sprtLegend"></div>
+  </section>
+  <section class="card s5">
+    <h2>Generations</h2>
+    <div class="tbl-wrap" id="genTable"></div>
+  </section>
+
+  <section class="card s12">
+    <h2>All crossfish vs uttt.ai matches</h2>
+    <p class="sub">CodinGame rules. Matches before the CodinGame-rules retraining played the original uttt.ai network, still scored under CodinGame rules.</p>
+    <div class="tbl-wrap" id="matchTable"></div>
+  </section>
+</main>
+<div class="tip" id="tip"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const sign = v => (v >= 0 ? "+" : "") + (Math.abs(v) >= 100 ? Math.round(v) : (+v).toFixed(1).replace(/\.0$/, ""));
+const eloCls = v => v >= 0 ? "elo-pos" : "elo-neg";
+const fmtMs = ms => ms >= 1000 ? (ms / 1000) + " s" : ms + " ms";
+const W = 640;
+
+// tooltips: any element with data-tip
+document.addEventListener("mousemove", e => {
+  const t = e.target.closest("[data-tip]"), tip = $("#tip");
+  if (!t) { tip.style.opacity = 0; return; }
+  tip.textContent = t.dataset.tip; tip.style.opacity = 1;
+  const x = Math.min(innerWidth - tip.offsetWidth - 8, e.clientX + 12), y = Math.min(innerHeight - tip.offsetHeight - 8, e.clientY + 12);
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+});
+
+// ---------------------------------------------------------------- chart helpers
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0);
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+function frame(h, yLo, yHi, { left = 46, right = 12, top = 10, bottom = 26, yFmt = v => v } = {}) {
+  const Y = v => top + (h - top - bottom) * (1 - (v - yLo) / (yHi - yLo || 1));
+  let s = "";
+  for (const t of niceTicks(yLo, yHi)) s += `<line x1="${left}" x2="${W - right}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--grid)"/><text x="${left - 6}" y="${Y(t) + 4}" text-anchor="end">${yFmt(t)}</text>`;
+  return { Y, s, left, right, top, bottom, x0: left, x1: W - right };
+}
+
+// ---------------------------------------------------------------- sections
+function renderRunning(d) {
+  const a = d.activity, el = $("#running");
+  if (!a.jobs.length) { el.innerHTML = `<div class="idle">Nothing running right now.</div>`; }
+  else el.innerHTML = `<div class="jobs">` + a.jobs.map(j => {
+    const pct = j.total ? 100 * j.done / j.total : null;
+    const kind = { match: "Match", selfplay: "Self-play", sprt: "Promotion SPRT" }[j.kind];
+    return `<div class="job"><div class="k"><span class="pulse"></span>${kind}</div>
+      <div class="t"><span>${esc(j.title)}</span><span class="num">${j.total ? `${j.done} / ${j.total}` : ""}</span></div>
+      ${pct !== null ? `<div class="pbar"><span style="width:${pct.toFixed(1)}%"></span></div>` : ""}
+      <div class="d num">${esc(j.detail)}${j.eta ? ` · ETA ${esc(j.eta)}` : ""}</div></div>`;
+  }).join("") + `</div>`;
+  if (a.queue.length) el.innerHTML += `<div class="queue">Queued after this: ${a.queue.map(q => `<span class="chip">${esc(q)}</span>`).join("")}</div>`;
+}
+
+function seriesRuns(d) {
+  // the current equal-time series: bench_<net>_<ms>ms runs, newest net
+  const runs = d.matches.filter(m => /^bench_net\d+_\d+ms$/.test(m.name));
+  if (!runs.length) return { net: null, runs: [] };
+  const net = runs[0].net;
+  return { net, runs: runs.filter(m => m.net === net).sort((a, b) => a.cf_ms - b.cf_ms) };
+}
+function result(m, key) {  // final result, or the latest progress line while running
+  if (m.final[key]) return { ...m.final[key], live: false };
+  const p = m.progress[m.progress.length - 1];
+  if (!p) return null;
+  return key === "cg" ? { wdl: p.cg_wdl, elo: p.cg_elo, ci: p.cg_ci, live: true } : { wdl: p.ut_wdl, elo: p.ut_elo, ci: p.ut_ci, live: true };
+}
+
+function renderTimeControls(d) {
+  const { net, runs } = seriesRuns(d);
+  $("#tcTitle").textContent = net ? `Crossfish vs uttt.ai ${net} by thinking time` : "Crossfish vs uttt.ai by thinking time";
+  if (!runs.length) { $("#tcChart").innerHTML = `<div class="empty">No equal-time series yet.</div>`; $("#tcTable").innerHTML = ""; return; }
+  const H = 280, pts = [];
+  for (const m of runs) { const r = result(m, "cg"); if (r) pts.push({ m, key: "cg", off: 0, ...r }); }
+  let lo = Math.min(0, ...pts.map(p => p.elo - p.ci)), hi = Math.max(0, ...pts.map(p => p.elo + p.ci));
+  const pad = (hi - lo) * .08 || 20; lo -= pad; hi += pad;
+  const f = frame(H, lo, hi, { bottom: 34 });
+  const n = runs.length, X = i => f.x0 + (f.x1 - f.x0) * (n === 1 ? .5 : (i + .5) / n);
+  let s = f.s + `<line x1="${f.x0}" x2="${f.x1}" y1="${f.Y(0)}" y2="${f.Y(0)}" stroke="var(--axis)" stroke-width="1.2"/>`;
+  runs.forEach((m, i) => s += `<text x="${X(i)}" y="${H - 12}" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--text)">${fmtMs(m.cf_ms)}</text><text x="${X(i)}" y="${H}" text-anchor="middle">${m.done}/${m.total} games</text>`);
+  // connecting lines per rule set
+  for (const key of ["cg"]) {
+    const ps = pts.filter(p => p.key === key).map(p => [X(runs.indexOf(p.m)) + p.off, f.Y(p.elo)]);
+    if (ps.length > 1) s += `<path d="${ps.map((q, k) => (k ? "L" : "M") + q[0] + "," + q[1]).join("")}" fill="none" stroke="${key === "cg" ? "var(--cf)" : "var(--axis)"}" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7"/>`;
+  }
+  for (const p of pts) {
+    const x = X(runs.indexOf(p.m)) + p.off, c = p.key === "cg" ? "var(--cf)" : "var(--axis)";
+    const tip = `${fmtMs(p.m.cf_ms)}${p.live ? " (running)" : ""}\ncrossfish ${sign(p.elo)} ± ${Math.round(p.ci)} Elo\nW/D/L ${p.wdl.join(" / ")}`;
+    s += `<g data-tip="${esc(tip)}"><line x1="${x}" x2="${x}" y1="${f.Y(p.elo - p.ci)}" y2="${f.Y(p.elo + p.ci)}" stroke="${c}" stroke-width="2.2"/>
+      <line x1="${x - 6}" x2="${x + 6}" y1="${f.Y(p.elo - p.ci)}" y2="${f.Y(p.elo - p.ci)}" stroke="${c}" stroke-width="2"/><line x1="${x - 6}" x2="${x + 6}" y1="${f.Y(p.elo + p.ci)}" y2="${f.Y(p.elo + p.ci)}" stroke="${c}" stroke-width="2"/>
+      <circle cx="${x}" cy="${f.Y(p.elo)}" r="6" fill="${p.live ? "var(--panel)" : c}" stroke="${c}" stroke-width="2.5"/>
+      ${p.key === "cg" ? `<text x="${x - 12}" y="${f.Y(p.elo) + 4}" text-anchor="end" style="font-weight:700;fill:var(--cf);font-size:12px">${sign(p.elo)}</text>` : ""}
+      <rect x="${x - 10}" y="${f.Y(p.elo + p.ci) - 4}" width="20" height="${f.Y(p.elo - p.ci) - f.Y(p.elo + p.ci) + 8}" fill="transparent"/></g>`;
+  }
+  $("#tcChart").innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}">${s}</svg><div class="legend"><span>Hollow marker = still running.</span></div>`;
+  $("#tcTable").innerHTML = `<table class="num compact"><tr><th>Time</th><th class="r">Games</th><th class="r">W/D/L</th><th class="r">Elo</th><th class="r">CF depth</th><th class="r">CF speed</th><th class="r">UT sims</th><th class="r">UT speed</th></tr>` +
+    runs.map(m => {
+      const cg = result(m, "cg"), me = m.meta || {};
+      return `<tr><td><b>${fmtMs(m.cf_ms)}</b>${m.running ? ` <span class="pill live">live</span>` : ""}</td><td class="r">${m.done}/${m.total}</td>
+        <td class="r">${cg ? cg.wdl.join("/") : "–"}</td><td class="r ${cg ? eloCls(cg.elo) : ""}">${cg ? `${sign(cg.elo)} ± ${Math.round(cg.ci)}` : "–"}</td>
+        <td class="r">${me.cf_depth ?? "–"}</td><td class="r">${me.cf_nps ? (me.cf_nps / 1e6).toFixed(1) + "M/s" : "–"}</td>
+        <td class="r">${me.ut_sims ?? "–"}</td><td class="r">${me.ut_sps ? Math.round(me.ut_sps) + "/s" : "–"}</td></tr>`;
+    }).join("") + `</table><p class="sub" style="margin-top:10px">CF depth and speed: crossfish's completed search depth and nodes per second. UT sims and speed: new uttt.ai simulations per move (reused tree not counted) and per second. Speeds show how much the parallel games slow each engine.</p>`;
+}
+
+function renderConvergence(d) {
+  const { runs } = seriesRuns(d);
+  if (!runs.length) { $("#conv").innerHTML = `<div class="empty">No runs yet.</div>`; return; }
+  const queued = (d.activity.queue || []).map(q => `<div><b>${esc(q.replace("1000 ms", "1 s").replace("5000 ms", "5 s"))}</b><div class="empty">queued</div></div>`).join("");
+  $("#conv").innerHTML = runs.map(m => {
+    const P = m.progress; if (!P.length) return `<div><b>${fmtMs(m.cf_ms)}</b><div class="empty">waiting for the first 10 games</div></div>`;
+    const H = 170, total = m.total || P[P.length - 1].k;
+    let lo = Math.min(0, ...P.map(p => p.cg_elo - p.cg_ci)), hi = Math.max(0, ...P.map(p => p.cg_elo + p.cg_ci));
+    lo = Math.max(lo, -600); hi = Math.min(hi, 600);
+    const f = frame(H, lo, hi, { left: 40, bottom: 22 });
+    const X = k => f.x0 + (f.x1 - f.x0) * k / total;
+    const cl = v => Math.max(lo, Math.min(hi, v));
+    const band = P.map(p => `${X(p.k)},${f.Y(cl(p.cg_elo + p.cg_ci))}`).join(" ") + " " + [...P].reverse().map(p => `${X(p.k)},${f.Y(cl(p.cg_elo - p.cg_ci))}`).join(" ");
+    let s = f.s + `<polygon points="${band}" fill="var(--cf-soft)"/><line x1="${f.x0}" x2="${f.x1}" y1="${f.Y(0)}" y2="${f.Y(0)}" stroke="var(--axis)"/>`;
+    s += `<path d="${P.map((p, k) => (k ? "L" : "M") + X(p.k) + "," + f.Y(cl(p.cg_elo))).join("")}" fill="none" stroke="var(--cf)" stroke-width="2"/>`;
+    for (const t of niceTicks(0, total, 4)) s += `<text x="${X(t)}" y="${H - 6}" text-anchor="middle">${t}</text>`;
+    const last = P[P.length - 1];
+    return `<div><div style="display:flex;justify-content:space-between;font-size:13px"><b>${fmtMs(m.cf_ms)}</b><span class="num ${eloCls(last.cg_elo)}">${sign(last.cg_elo)} ± ${last.cg_ci}</span></div>
+      <svg class="chart" viewBox="0 0 ${W} ${H}">${s}</svg></div>`;
+  }).join("") + queued;
+}
+
+function renderTraining(d) {
+  const G = d.training.generations;
+  if (!G.length) { $("#ladder").innerHTML = `<div class="empty">No training runs.</div>`; return; }
+  // cumulative chain over promoted networks; errors add in quadrature
+  let cum = 0, var_ = 0; const chain = [{ net: "original", cum: 0, ci: 0 }];
+  for (const g of G) {
+    if (typeof g.elo !== "number") continue;
+    if (g.promoted) { cum += g.elo; var_ += g.ci * g.ci; chain.push({ net: g.net, cum, ci: Math.sqrt(var_), g }); }
+    else chain.push({ net: g.net, cum: cum + g.elo, ci: Math.sqrt(var_ + g.ci * g.ci), g, off: true });
+  }
+  const H = 290, lo = Math.min(0, ...G.map(g => (g.elo ?? 0) - (g.ci ?? 0))), hi = Math.max(...chain.map(c => c.cum + c.ci)) * 1.05;
+  const f = frame(H, lo, hi, { bottom: 44 });
+  const n = chain.length, X = i => f.x0 + (f.x1 - f.x0) * (i + .5) / n, bw = Math.min(34, (f.x1 - f.x0) / n * .35);
+  let s = f.s + `<line x1="${f.x0}" x2="${f.x1}" y1="${f.Y(0)}" y2="${f.Y(0)}" stroke="var(--axis)"/>`;
+  chain.forEach((c, i) => {
+    s += `<text x="${X(i)}" y="${H - 24}" text-anchor="middle" style="font-weight:600;fill:var(--text)">${c.net}</text>`;
+    if (c.g) {
+      const g = c.g, col = g.promoted ? "var(--good)" : "var(--bad)";
+      const tip = `${g.net} vs ${g.vs}: ${sign(g.elo)} ± ${Math.round(g.ci)} Elo\n${g.method}${g.llr !== undefined ? ` · LLR ${g.llr}` : ""}${g.note ? "\n" + g.note : ""}\n${g.promoted ? "promoted" : "not promoted"}`;
+      s += `<g data-tip="${esc(tip)}"><rect x="${X(i) - bw / 2}" y="${Math.min(f.Y(0), f.Y(g.elo))}" width="${bw}" height="${Math.abs(f.Y(0) - f.Y(g.elo))}" rx="4" fill="${col}" opacity=".35"/>
+        <line x1="${X(i)}" x2="${X(i)}" y1="${f.Y(g.elo - g.ci)}" y2="${f.Y(g.elo + g.ci)}" stroke="${col}" stroke-width="1.5" opacity=".8"/>
+        <text x="${X(i)}" y="${H - 8}" text-anchor="middle" style="font-weight:700;fill:${col}">${sign(g.elo)} ± ${Math.round(g.ci)}</text></g>`;
+    }
+  });
+  const on = chain.filter(c => !c.off), idx = c => chain.indexOf(c);
+  const band = on.map(c => `${X(idx(c))},${f.Y(c.cum + c.ci)}`).join(" ") + " " + [...on].reverse().map(c => `${X(idx(c))},${f.Y(c.cum - c.ci)}`).join(" ");
+  s += `<polygon points="${band}" fill="var(--alt-soft)"/><path d="${on.map((c, k) => (k ? "L" : "M") + X(idx(c)) + "," + f.Y(c.cum)).join("")}" fill="none" stroke="var(--alt)" stroke-width="2.5"/>`;
+  for (const c of chain) {
+    const x = X(idx(c)), y = f.Y(c.cum);
+    if (c.off) { const prev = on[on.length - 1]; s += `<line x1="${X(idx(prev))}" y1="${f.Y(prev.cum)}" x2="${x}" y2="${y}" stroke="var(--alt)" stroke-width="1.5" stroke-dasharray="4 4"/>`; }
+    s += `<g data-tip="${esc(`${c.net}: ${sign(c.cum)} ± ${Math.round(c.ci)} Elo over the original${c.off ? " (not promoted)" : ""}`)}"><circle cx="${x}" cy="${y}" r="5.5" fill="${c.off ? "var(--panel)" : "var(--alt)"}" stroke="var(--alt)" stroke-width="2.2"/>
+      <text x="${x + 8}" y="${y - 7}" style="font-weight:700;fill:var(--alt)">${sign(c.cum)}</text></g>`;
+  }
+  $("#ladder").innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}">${s}</svg>`;
+
+  // value error
+  const V = G.filter(g => g.val);
+  if (V.length) {
+    const H2 = 230, vals = V.map(g => g.val.result_mse), lo2 = Math.min(...vals) - .02, hi2 = Math.max(...vals) + .02;
+    const f2 = frame(H2, lo2, hi2, { yFmt: v => v.toFixed(2) });
+    const X2 = i => f2.x0 + (f2.x1 - f2.x0) * (V.length === 1 ? .5 : i / (V.length - 1));
+    let s2 = f2.s + `<path d="${V.map((g, i) => (i ? "L" : "M") + X2(i) + "," + f2.Y(g.val.result_mse)).join("")}" fill="none" stroke="var(--ut)" stroke-width="2.2"/>`;
+    V.forEach((g, i) => s2 += `<g data-tip="${esc(`${g.net}: MSE vs result ${g.val.result_mse}\npolicy CE ${g.val.policy_ce} · value MSE vs search ${g.val.value_mse}`)}"><circle cx="${X2(i)}" cy="${f2.Y(g.val.result_mse)}" r="5" fill="var(--ut)"/><text x="${X2(i)}" y="${H2 - 8}" text-anchor="middle" style="font-weight:600;fill:var(--text)">${g.net}</text><text x="${X2(i)}" y="${f2.Y(g.val.result_mse) - 9}" text-anchor="middle">${g.val.result_mse.toFixed(3)}</text></g>`);
+    $("#valChart").innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H2}">${s2}</svg><p class="sub" style="margin-top:6px">Each network is validated on its own newest data, so neighbouring points are close but not identical tests.</p>`;
+  }
+
+  // generations table
+  $("#genTable").innerHTML = `<table class="num"><tr><th>Net</th><th>Gate</th><th class="r">Elo vs prev</th><th class="r">Games</th><th class="r">Self-play</th></tr>` +
+    G.map(g => `<tr><td><b>${g.net}</b></td><td>${g.promoted ? `<span class="pill yes">promoted</span>` : g.promoted === false ? `<span class="pill no">not promoted</span>` : "–"}<div class="muted" style="font-size:11.5px">${esc(g.method)}</div></td>
+      <td class="r ${typeof g.elo === "number" ? eloCls(g.elo) : ""}">${typeof g.elo === "number" ? `${sign(g.elo)} ± ${Math.round(g.ci)}` : "–"}${g.llr !== undefined ? `<div class="muted" style="font-size:11.5px">LLR ${g.llr}</div>` : ""}</td>
+      <td class="r">${g.pairs ? g.pairs * 2 : g.games ?? "–"}</td><td class="r">${g.selfplay ? g.selfplay.rate.toLocaleString() + "/h" : "–"}</td></tr>`).join("") + `</table>`;
+}
+
+function renderSprts(d) {
+  const S = d.training.sprts;
+  if (!S.length) { $("#sprtChart").innerHTML = `<div class="empty">No SPRTs yet.</div>`; return; }
+  const H = 260, maxP = Math.max(...S.flatMap(s => s.points.map(p => p[0])), 100);
+  const lo = Math.min(-3.4, ...S.flatMap(s => s.points.map(p => p[1]))), hi = Math.max(3.4, ...S.flatMap(s => s.points.map(p => p[1])));
+  const f = frame(H, lo, hi, { yFmt: v => v });
+  const X = k => f.x0 + (f.x1 - f.x0) * k / maxP;
+  let s = f.s;
+  for (const b of [3, -3]) s += `<line x1="${f.x0}" x2="${f.x1}" y1="${f.Y(b)}" y2="${f.Y(b)}" stroke="${b > 0 ? "var(--good)" : "var(--bad)"}" stroke-dasharray="5 4" stroke-width="1.4"/><text x="${f.x1}" y="${f.Y(b) - 5}" text-anchor="end" style="fill:${b > 0 ? "var(--good)" : "var(--bad)"};font-weight:700">${b > 0 ? "promote" : "reject"}</text>`;
+  for (const t of niceTicks(0, maxP, 5)) s += `<text x="${X(t)}" y="${H - 8}" text-anchor="middle">${t}</text>`;
+  const cols = ["var(--alt)", "var(--cf)", "var(--ut)", "var(--warn)", "var(--good)"];
+  const legend = [];
+  S.forEach((sp, i) => {
+    const c = cols[i % cols.length];
+    s += `<path d="${sp.points.map((p, k) => (k ? "L" : "M") + X(p[0]) + "," + f.Y(p[1])).join("")}" fill="none" stroke="${c}" stroke-width="2.2" ${sp.biased ? `stroke-dasharray="3 3" opacity=".7"` : ""}/>`;
+    const p = sp.points[sp.points.length - 1];
+    s += `<circle cx="${X(p[0])}" cy="${f.Y(p[1])}" r="4.5" fill="${c}" data-tip="${esc(`${sp.a} vs ${sp.b}\n${p[0]} pairs · Elo ${sign(p[2])} ± ${p[3]} · LLR ${p[1]}\n${sp.verdict || (sp.running ? "running" : "stopped")}`)}"/>`;
+    legend.push(`<span><i style="background:${c}"></i>${esc((sp.a || "").replace(".pt", ""))} vs ${esc((sp.b || "").replace(".pt", ""))}${sp.biased ? " (completion-order, biased)" : ""} — ${esc(sp.verdict ? sp.verdict.replace("SPRT ", "") : sp.running ? "running" : "stopped")}</span>`);
+  });
+  $("#sprtChart").innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}">${s}</svg>`;
+  $("#sprtLegend").innerHTML = legend.join("");
+}
+
+function renderMatches(d) {
+  const M = d.matches;
+  $("#matchTable").innerHTML = `<table class="num"><tr><th>Match</th><th>When</th><th>uttt.ai net</th><th class="r">Crossfish</th><th class="r">uttt.ai</th><th class="r">Games</th><th class="r">W/D/L</th><th class="r">Elo</th><th></th></tr>` +
+    M.map(m => {
+      const cg = result(m, "cg");
+      const when = new Date(m.mtime * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      const utb = m.ut_ms ? fmtMs(m.ut_ms) : (m.ut_sims ? m.ut_sims + " sims" : "–");
+      return `<tr><td><b>${esc(m.name)}</b>${m.running ? ` <span class="pill live">live</span>` : ""}</td><td class="muted">${when}</td><td>${esc(m.net || "–")}</td>
+        <td class="r">${m.cf_ms ? fmtMs(m.cf_ms) : "–"}</td><td class="r">${utb}</td><td class="r">${m.done}/${m.total ?? "?"}</td>
+        <td class="r">${cg ? cg.wdl.join("/") : "–"}</td><td class="r ${cg ? eloCls(cg.elo) : ""}">${cg ? `${sign(cg.elo)} ± ${Math.round(cg.ci)}` : "–"}</td>
+        <td>${m.live ? `<a href="/games?match=${encodeURIComponent(m.live)}">watch ›</a>` : ""}</td></tr>`;
+    }).join("") + `</table>`;
+}
+
+// ---------------------------------------------------------------- polling
+async function poll() {
+  try {
+    const d = await (await fetch("/api/dashboard", { cache: "no-store" })).json();
+    for (const f of [renderRunning, renderTimeControls, renderConvergence, renderTraining, renderSprts, renderMatches]) {
+      try { f(d); } catch (e) { console.error(f.name, e); }
+    }
+    $("#updated").textContent = "updated " + new Date().toLocaleTimeString();
+  } catch (e) { $("#updated").textContent = "server not reachable – retrying…"; }
+  setTimeout(poll, 5000);
+}
+function toggleTheme() {
+  const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("uv_theme", r.dataset.theme); } catch (e) {}
+}
+try { const t = localStorage.getItem("uv_theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("#themeBtn").onclick = toggleTheme;
+poll();
+</script>
+</body>
+</html>
