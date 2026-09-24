@@ -184,7 +184,7 @@ def test_uttt_exceptions() -> None:
     uttt.state[84] = O_STATE_VALUE
     with pytest.raises(UltimateTicTacToeError) as e:
         uttt.execute(action=Action(symbol=X_STATE_VALUE, index=10), verify=True)
-    assert str(e.value) == "DRAW on supergame, but result is not updated"
+    assert str(e.value) == "full supergame, but result does not match the subgame count"
     uttt.state[81] = 0
     uttt.state[82] = 0
     uttt.state[84] = 0

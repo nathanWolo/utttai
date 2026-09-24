@@ -152,7 +152,18 @@ class UltimateTicTacToe:
             if self._is_winning_position(symbol=symbol, subgame=9):
                 self.state[UTTT_RESULT_STATE_INDEX] = symbol
             elif self._is_full(subgame=9):
-                self.state[UTTT_RESULT_STATE_INDEX] = DRAW_STATE_VALUE
+                self.state[UTTT_RESULT_STATE_INDEX] = self._count_result()
+
+    def _count_result(self) -> int:
+        # CodinGame rules: a full supergame with no line goes to the player who
+        # won more subgames; equal counts are a draw.
+        x = sum(1 for s in self.state[81:90] if s == X_STATE_VALUE)
+        o = sum(1 for s in self.state[81:90] if s == O_STATE_VALUE)
+        if x > o:
+            return X_STATE_VALUE
+        if o > x:
+            return O_STATE_VALUE
+        return DRAW_STATE_VALUE
 
     def _toggle_next_symbol(self) -> None:
         if self.is_next_symbol_X():
@@ -182,8 +193,8 @@ class UltimateTicTacToe:
             raise UltimateTicTacToeError("X won supergame, but result is not updated")
         if o_w and not self.is_result_O():
             raise UltimateTicTacToeError("O won supergame, but result is not updated")
-        if full and not self.is_result_draw() and not (x_w or o_w):
-            raise UltimateTicTacToeError("DRAW on supergame, but result is not updated")
+        if full and not (x_w or o_w) and self.result != self._count_result():
+            raise UltimateTicTacToeError("full supergame, but result does not match the subgame count")
 
     def _verify_subgames(self) -> None:
         for subgame in range(0, 9):
