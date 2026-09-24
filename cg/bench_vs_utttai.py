@@ -120,7 +120,7 @@ def worker(jobs, results, sims, cf_ms, exe, live=None, wid=0):
                     search.run()
                 else:
                     deadline = t0 + ut_ms / 1000
-                    while search.root.visit_count - before < 2 or time.perf_counter() < deadline:
+                    while (search.root.visit_count - before < 2 or time.perf_counter() < deadline) and not search.solved():
                         search._simulate()
                 idx = search.best_action().index
                 ut_s_used += time.perf_counter() - t0
